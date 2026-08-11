@@ -16,7 +16,8 @@ externo.
 
 - H1 — contrato `task-card/v1`: schema, fixtures y validador local. Hecho;
   ronda adversarial final `proceed` tras tres iteraciones de endurecimiento.
-- H2 — resultado de auditoría y transiciones: pendiente.
+- H2 — resultado de auditoría y transiciones: hecho; ronda adversarial final
+  `proceed`.
 - H3 — adaptador `opencode-tmux/v1` con preflight: pendiente.
 
 ## Contrato H1
@@ -48,3 +49,23 @@ Definition of Done:
   mantenedor y conservar evidencia independiente.
 
 La evidencia de cierre de H1 está en [`adversarial-h1.md`](adversarial-h1.md).
+
+## Contrato H2
+
+**Entradas:** contrato H1, estados del README y
+[`architecture/0001-audit-state-v1.md`](architecture/0001-audit-state-v1.md).
+**Salidas:** schema y validador `audit-result/v1`, máquina de estados pura,
+fixtures y pruebas.
+
+Definition of Done:
+
+- una secuencia nominal alcanza `DONE` sólo desde `REVIEWING` con auditoría
+  `OK/proceed` y evidencia completa;
+- evidencia fallida o ausente no puede producir `OK`;
+- estados terminales y transiciones desconocidas fallan cerrados;
+- validar un resultado no ejecuta checks, no escribe estado y no inicia
+  adaptadores;
+- pruebas unitarias y fixtures positivos/adversariales quedan en verde;
+- ronda adversarial independiente termina en `proceed` antes de cerrar H2.
+
+La evidencia de cierre está en [`adversarial-h2.md`](adversarial-h2.md).

@@ -24,7 +24,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["grant_id", "granted_by", "granted_actions", "protected_operations_authorized"],
       "properties": {
-        "grant_id": {"$ref": "#/$defs/nonemptyString"},
+        "grant_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
         "granted_by": {"const": "maintainer"},
         "granted_actions": {"type": "array", "minItems": 1, "items": {"enum": ["read", "edit", "run_checks"]}},
         "protected_operations_authorized": {"type": "array", "maxItems": 0}

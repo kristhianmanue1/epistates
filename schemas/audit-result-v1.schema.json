@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistates.dev/schemas/audit-result-v1.schema.json",
+  "title": "Epistates audit result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "authority_binding", "observed_at", "state_before", "classification", "decision", "evidence"],
+  "properties": {
+    "schema": {"const": "epistates/audit-result/v1"},
+    "task_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "attempt_id": {"$ref": "#/$defs/id"},
+    "task_card_digest": {"$ref": "#/$defs/digest"},
+    "authority_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["grant_id", "grant_digest", "decision_reference"],
+      "properties": {
+        "grant_id": {"$ref": "#/$defs/id"},
+        "grant_digest": {"$ref": "#/$defs/digest"},
+        "decision_reference": {"$ref": "#/$defs/id"}
+      }
+    },
+    "observed_at": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "state_before": {"const": "REVIEWING"},
+    "classification": {"enum": ["OK", "PARCIAL", "BLOQ"]},
+    "decision": {"enum": ["proceed", "fix-and-retry", "escalate"]},
+    "evidence": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["evidence_id", "status", "digest"],
+        "properties": {
+          "evidence_id": {"enum": ["git_status", "diff_check", "unit_tests", "file_digest"]},
+          "status": {"enum": ["pass", "fail", "missing"]},
+          "digest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]}
+        },
+        "allOf": [
+          {"if": {"properties": {"status": {"const": "missing"}}}, "then": {"properties": {"digest": {"type": "null"}}}},
+          {"if": {"properties": {"status": {"enum": ["pass", "fail"]}}}, "then": {"properties": {"digest": {"$ref": "#/$defs/digest"}}}}
+        ]
+      }
+    }
+  },
+  "oneOf": [
+    {"properties": {"classification": {"const": "OK"}, "decision": {"const": "proceed"}, "evidence": {"items": {"properties": {"status": {"const": "pass"}}}}}},
+    {"properties": {"classification": {"const": "PARCIAL"}, "decision": {"const": "fix-and-retry"}}},
+    {"properties": {"classification": {"const": "PARCIAL"}, "decision": {"const": "escalate"}}},
+    {"properties": {"classification": {"const": "BLOQ"}, "decision": {"const": "escalate"}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "epistates/audit-result/v1",
+  "task_id": "e1-contracts",
+  "run_id": "run-001",
+  "attempt_id": "attempt-001",
+  "task_card_digest": "sha256:c14c033bd0e001a4db801f99e5ab60dc75dee7c4ca597305740124e95113d3c9",
+  "authority_binding": {
+    "grant_id": "maintainer-e1-contracts",
+    "grant_digest": "sha256:24a39dff4b7a38f45959b89850debed2bb584fb4c887278748064ed6f1eda2cd",
+    "decision_reference": "conversation-2026-08-11"
+  },
+  "observed_at": "2026-08-11T18:00:00Z",
+  "state_before": "REVIEWING",
+  "classification": "OK",
+  "decision": "proceed",
+  "evidence": [
+    {"evidence_id": "git_status", "status": "pass", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"},
+    {"evidence_id": "diff_check", "status": "pass", "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"},
+    {"evidence_id": "unit_tests", "status": "pass", "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"}
+  ]
+}

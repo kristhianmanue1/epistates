@@ -86,3 +86,15 @@ class TaskCardValidationTests(unittest.TestCase):
         card["checks"][0]["check_id"] = []
         with self.assertRaises(ValidationError):
             validate_task_card(card)
+
+    def test_rejects_noncanonical_grant_id(self):
+        card = self.load_fixture("task-card-valid.json")
+        card["authority"]["grant_id"] = "Grant reference / 2026"
+        with self.assertRaisesRegex(ValidationError, "grant_id"):
+            validate_task_card(card)
+
+    def test_rejects_lone_unicode_surrogate(self):
+        card = self.load_fixture("task-card-valid.json")
+        card["objective"] = "\ud800"
+        with self.assertRaises(ValidationError):
+            validate_task_card(card)

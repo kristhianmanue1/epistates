@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 
 class ValidationError(ValueError):
-    """La tarjeta no expresa la autoridad ni evidencia mínima requerida."""
+    """Un artefacto no satisface su contrato declarado."""
 
 
 _TOP_LEVEL = {
@@ -26,7 +26,8 @@ _EVIDENCE = {"worktree_status", "diff_check", "check_results"}
 
 
 def _require_string(value: Any, field: str) -> None:
-    if not isinstance(value, str) or not value.strip():
+    if (not isinstance(value, str) or not value.strip()
+            or any(0xD800 <= ord(character) <= 0xDFFF for character in value)):
         raise ValidationError(f"{field} debe ser texto no vacío")
 
 
@@ -46,7 +47,8 @@ def validate_task_card(card: Mapping[str, Any]) -> None:
     if missing:
         raise ValidationError(f"campos requeridos ausentes: {', '.join(sorted(missing))}")
     if unknown:
-        raise ValidationError(f"campos no permitidos: {', '.join(sorted(unknown))}")
+        rendered = ", ".join(repr(field) for field in sorted(unknown))
+        raise ValidationError(f"campos no permitidos: {rendered}")
     if card["schema"] != "epistates/task-card/v1":
         raise ValidationError("schema debe ser epistates/task-card/v1")
     if not isinstance(card["task_id"], str) or not re.fullmatch(r"[a-z][a-z0-9-]{2,63}", card["task_id"]):
@@ -69,7 +71,8 @@ def validate_task_card(card: Mapping[str, Any]) -> None:
     authority = card["authority"]
     if not isinstance(authority, Mapping) or set(authority) != {"grant_id", "granted_by", "granted_actions", "protected_operations_authorized"}:
         raise ValidationError("authority debe declarar grant_id, granted_by, granted_actions y protected_operations_authorized")
-    _require_string(authority["grant_id"], "authority.grant_id")
+    if not isinstance(authority["grant_id"], str) or not re.fullmatch(r"[a-z][a-z0-9-]{2,63}", authority["grant_id"]):
+        raise ValidationError("authority.grant_id debe usar minúsculas, dígitos o guiones")
     if authority["granted_by"] != "maintainer":
         raise ValidationError("authority.granted_by debe ser maintainer")
     if not isinstance(authority["granted_actions"], list) or not authority["granted_actions"] or any(not isinstance(action, str) or action not in _ACTIONS for action in authority["granted_actions"]):
