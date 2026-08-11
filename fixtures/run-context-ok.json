@@ -1,0 +1,13 @@
+{
+  "observed_repository": "epistates",
+  "observed_worktree": "/workspace/epistates",
+  "observed_cwd": "/workspace/epistates",
+  "observed_branch": "codex/e1-contracts",
+  "observed_sha": "7521eed0000000000000000000000000000000000",
+  "worktree_clean": true,
+  "observed_session_name": "epistates-opencode",
+  "pane_alive": true,
+  "observed_command": "idle",
+  "observed_platform": "darwin",
+  "observed_at": "2026-08-11T18:00:00Z"
+}

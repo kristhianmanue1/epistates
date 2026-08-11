@@ -1,6 +1,7 @@
 # Plan inicial — E1 contratos y conformidad
 
-**Estado:** H1 cerrado; H2 pendiente. **Fecha:** 2026-08-11. **Fuente:** definición fundacional y
+**Estado:** H1 y H2 cerrados; H3 en curso (Slice1 aceptado; cortes operativos
+pendientes). **Fecha:** 2026-08-11. **Fuente:** definición fundacional y
 protocolo técnico del piloto.
 
 ## Objetivo y criterio de cierre
@@ -18,7 +19,10 @@ externo.
   ronda adversarial final `proceed` tras tres iteraciones de endurecimiento.
 - H2 — resultado de auditoría y transiciones: hecho; ronda adversarial final
   `proceed`.
-- H3 — adaptador `opencode-tmux/v1` con preflight: pendiente.
+- H3 — adaptador `opencode-tmux/v1` con preflight: en curso. Slice1
+  implementado (contrato neutral `adapter-capabilities/v1` y preflight puro
+  fail-closed con resultado portable `preflight-result/v1`) y aceptado tras
+  ronda adversarial `proceed`; los cortes operativos siguen pendientes.
 
 ## Contrato H1
 
@@ -69,3 +73,65 @@ Definition of Done:
 - ronda adversarial independiente termina en `proceed` antes de cerrar H2.
 
 La evidencia de cierre está en [`adversarial-h2.md`](adversarial-h2.md).
+
+## Contrato H3 — Slice1
+
+**Entradas:** contrato H2, README (roles del controlador/adaptador y flujo
+operativo) y la corrección adversarial del análisis H3. **Salidas:** contrato
+neutral `epistates/adapter-capabilities/v1`, preflight puro fail-closed y
+resultado portable `epistates/preflight-result/v1`.
+
+Slice1 es estrictamente declarativo y sin integración de procesos: no ejecuta
+subprocess, no usa `tmux send-keys` y no consulta el reloj (`observed_at` se
+inyecta). Separa expectativas (repositorio/worktree/rama/SHA base desde
+`task_card.target`; `expected_session_name` y `expected_command` como argumentos
+explícitos del controlador) de observaciones inyectadas por el host.
+
+Definition of Done de Slice1:
+
+- `adapter-capabilities/v1` valida identidad, plataformas (`darwin`, `linux`) y
+  capabilities cerradas (`dispatch_literal`, `observe_session`, `capture_once`);
+  `adapter_id` puede identificar `opencode-tmux` sin romper la neutralidad;
+- el preflight liga repository, worktree, cwd (coincidencia exacta con
+  `target.worktree`, no containment), branch, SHA, limpieza, sesión, pane vivo,
+  comando observado y plataforma contra `adapter.platforms`;
+- observaciones ausentes o mal tipadas producen `PreflightError`; nunca `ok`;
+- `preflight-result/v1` lleva `schema`, `task_id`, `run_id`, `attempt_id`,
+  `task_card_digest`, `adapter_digest`, `adapter_id`, `observed_at`, `outcome`,
+  `reasons` (únicos y en orden determinista) y `observed` saneado;
+- el CLI registra ambos schemas y, para `preflight-result`, exige binding
+  completo (`--task-card`, `--adapter-capabilities`, `--run-id`, `--attempt-id`,
+  `--expected-session-name`, `--expected-command`);
+- la suite unittest termina en verde.
+
+La evidencia de aceptación de Slice1 está en
+[`adversarial-h3.md`](adversarial-h3.md). H3 completo permanece abierto hasta
+implementar y auditar los sub-cortes posteriores: observación real del host,
+entrega literal, pausa sin polling e inspección única.
+
+### Reproducibilidad del DoD
+
+El intérprete del auditor es el venv editable del worktree principal:
+
+```bash
+/Users/krisnova/www/aria/epistates/.venv/bin/python
+```
+
+Ese venv importa `epistates` desde `/Users/krisnova/www/aria/epistates/src`,
+no desde este worktree. Para ejecutar la suite contra **este** worktree de forma
+reproducible se requiere `PYTHONPATH=src`:
+
+```bash
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+```
+
+Sin `PYTHONPATH=src` no se prueba este worktree. Los validadores CLI análogos:
+
+```bash
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates validate fixtures/adapter-capabilities-opencode-tmux.json
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates validate fixtures/preflight-result-ok.json \
+  --task-card fixtures/task-card-valid.json \
+  --adapter-capabilities fixtures/adapter-capabilities-opencode-tmux.json \
+  --run-id run-001 --attempt-id attempt-001 \
+  --expected-session-name epistates-opencode --expected-command idle
+```

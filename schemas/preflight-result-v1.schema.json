@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistates.dev/schemas/preflight-result-v1.schema.json",
+  "title": "Epistates preflight result v1",
+  "description": "Resultado portable de un preflight fail-closed. El binding normativo lo aporta el validador Python y el CLI, no este schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "adapter_id", "observed_at", "outcome", "reasons", "observed"],
+  "properties": {
+    "schema": {"const": "epistates/preflight-result/v1"},
+    "task_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "attempt_id": {"$ref": "#/$defs/id"},
+    "task_card_digest": {"$ref": "#/$defs/digest"},
+    "adapter_digest": {"$ref": "#/$defs/digest"},
+    "adapter_id": {"$ref": "#/$defs/id"},
+    "observed_at": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "outcome": {"enum": ["ok", "blocked"]},
+    "reasons": {
+      "type": "array",
+      "items": {"enum": ["repository_mismatch", "worktree_mismatch", "cwd_mismatch", "branch_drift", "sha_drift", "dirty", "session_mismatch", "pane_dead", "command_unexpected", "platform_unsupported"]}
+    },
+    "observed": {
+      "type": "object", "additionalProperties": false,
+      "required": ["observed_repository", "observed_worktree", "observed_cwd", "observed_branch", "observed_sha", "worktree_clean", "observed_session_name", "pane_alive", "observed_command", "observed_platform"],
+      "properties": {
+        "observed_repository": {"$ref": "#/$defs/nonemptyString"},
+        "observed_worktree": {"$ref": "#/$defs/nonemptyString"},
+        "observed_cwd": {"$ref": "#/$defs/nonemptyString"},
+        "observed_branch": {"$ref": "#/$defs/nonemptyString"},
+        "observed_sha": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+        "worktree_clean": {"type": "boolean"},
+        "observed_session_name": {"$ref": "#/$defs/nonemptyString"},
+        "pane_alive": {"type": "boolean"},
+        "observed_command": {"$ref": "#/$defs/nonemptyString"},
+        "observed_platform": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"}
+      }
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"outcome": {"const": "ok"}}}, "then": {"properties": {"reasons": {"maxItems": 0}}}},
+    {"if": {"properties": {"outcome": {"const": "blocked"}}}, "then": {"properties": {"reasons": {"minItems": 1, "uniqueItems": true}}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "nonemptyString": {"type": "string", "pattern": ".*\\S.*"}
+  }
+}

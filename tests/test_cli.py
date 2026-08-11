@@ -51,3 +51,59 @@ class CliValidationTests(unittest.TestCase):
         code, output = self.call("validate", str(FIXTURES / "artifact-duplicate-schema.json"))
         self.assertEqual(code, 1)
         self.assertIn("clave JSON duplicada", output)
+
+    def test_adapter_capabilities_valid(self):
+        code, output = self.call("validate", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"))
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_adapter_capabilities_bad_is_invalid(self):
+        code, output = self.call("validate", str(FIXTURES / "adapter-capabilities-bad-capability.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("INVALID", output)
+
+    def test_preflight_result_requires_full_binding(self):
+        code, output = self.call("validate", str(FIXTURES / "preflight-result-ok.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("preflight-result requiere", output)
+
+    def test_preflight_result_ok_binds_valid(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "preflight-result-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode", "--expected-command", "idle",
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_preflight_result_blocked_binds_valid(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "preflight-result-blocked.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode", "--expected-command", "idle",
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_preflight_result_wrong_session_is_invalid(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "preflight-result-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "wrong", "--expected-command", "idle",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("outcome", output)
+
+    def test_adapter_rejects_binding_options(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)

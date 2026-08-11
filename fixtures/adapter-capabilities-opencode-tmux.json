@@ -1,0 +1,7 @@
+{
+  "schema": "epistates/adapter-capabilities/v1",
+  "adapter_id": "opencode-tmux",
+  "version": "v1",
+  "platforms": ["darwin", "linux"],
+  "capabilities": ["dispatch_literal", "observe_session", "capture_once"]
+}

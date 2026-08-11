@@ -1,0 +1,7 @@
+{
+  "schema": "epistates/adapter-capabilities/v1",
+  "adapter_id": "opencode-tmux",
+  "version": "v1",
+  "platforms": ["darwin"],
+  "capabilities": ["dispatch_literal", "send_keys"]
+}

@@ -1,0 +1,7 @@
+{
+  "schema": "epistates/adapter-capabilities/v1",
+  "adapter_id": "opencode-tmux",
+  "version": "v1",
+  "platforms": ["windows"],
+  "capabilities": ["observe_session"]
+}
