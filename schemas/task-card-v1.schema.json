@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistates.dev/schemas/task-card-v1.schema.json",
+  "title": "Epistates task card v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "objective", "target", "role", "authority", "allowed_paths", "allowed_actions", "forbidden_operations", "inputs", "checks", "evidence", "delivery", "stop_condition", "new_decision_required_for"],
+  "properties": {
+    "schema": {"const": "epistates/task-card/v1"},
+    "task_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "objective": {"$ref": "#/$defs/nonemptyString"},
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "base_sha", "branch", "worktree"],
+      "properties": {
+        "repository": {"$ref": "#/$defs/nonemptyString"},
+        "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+        "branch": {"$ref": "#/$defs/nonemptyString"},
+        "worktree": {"type": "string", "pattern": "^/(?!/)(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$)).*\\S.*"}
+      }
+    },
+    "role": {"enum": ["developer", "qa", "documenter"]},
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["grant_id", "granted_by", "granted_actions", "protected_operations_authorized"],
+      "properties": {
+        "grant_id": {"$ref": "#/$defs/nonemptyString"},
+        "granted_by": {"const": "maintainer"},
+        "granted_actions": {"type": "array", "minItems": 1, "items": {"enum": ["read", "edit", "run_checks"]}},
+        "protected_operations_authorized": {"type": "array", "maxItems": 0}
+      }
+    },
+    "allowed_paths": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/relativePath"}},
+    "allowed_actions": {"type": "array", "minItems": 1, "items": {"enum": ["read", "edit", "run_checks"]}},
+    "forbidden_operations": {
+      "type": "array", "minItems": 1,
+      "items": {"enum": ["commit", "push", "open_pr", "merge", "release", "install_dependencies", "change_scope", "git_reset", "create_branch", "delete_branch", "create_worktree", "remove_worktree"]},
+      "allOf": [
+        {"contains": {"const": "commit"}}, {"contains": {"const": "push"}},
+        {"contains": {"const": "open_pr"}}, {"contains": {"const": "merge"}},
+        {"contains": {"const": "release"}}
+      ]
+    },
+    "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/relativePath"}},
+    "checks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["check_id", "expected"],
+        "properties": {
+          "check_id": {"enum": ["git_status", "diff_check", "unit_tests"]},
+          "expected": {"$ref": "#/$defs/nonemptyString"}
+        }
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["report_format", "required"],
+      "properties": {
+        "report_format": {"const": "rag/v1"},
+        "required": {"type": "array", "minItems": 1, "items": {"enum": ["worktree_status", "diff_check", "check_results"]}}
+      }
+    },
+    "delivery": {"$ref": "#/$defs/nonemptyString"},
+    "stop_condition": {"$ref": "#/$defs/nonemptyString"},
+    "new_decision_required_for": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonemptyString"}}
+  },
+  "$defs": {
+    "nonemptyString": {"type": "string", "pattern": ".*\\S.*"},
+    "relativePath": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*\\S.*"}
+  }
+}

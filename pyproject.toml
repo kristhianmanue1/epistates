@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "epistates"
+version = "0.0.1"
+description = "Contractual supervision runtime for external agents"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+
+[project.scripts]
+epistates = "epistates.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

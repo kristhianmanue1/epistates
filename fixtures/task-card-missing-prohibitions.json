@@ -1,0 +1,26 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "bad-card",
+  "objective": "Tarjeta adversarial.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "7521eed0000000000000000000000000000000000",
+    "branch": "codex/bad-card",
+    "worktree": "/workspace/epistates"
+  },
+  "role": "qa",
+  "authority": {
+    "grant_id": "maintainer-bad-card",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": ["tests/"],
+  "allowed_actions": ["read", "run_checks"],
+  "inputs": ["README.md"],
+  "checks": [{"check_id": "unit_tests", "expected": "exit 0"}],
+  "evidence": {"report_format": "rag/v1", "required": ["check_results"]},
+  "delivery": "reporte",
+  "stop_condition": "detenerse",
+  "new_decision_required_for": ["todo cambio"]
+}

@@ -1,0 +1,35 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e1-contracts",
+  "objective": "Implementar el contrato de tarjeta y su validación local.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "7521eed0000000000000000000000000000000000",
+    "branch": "codex/e1-contracts",
+    "worktree": "/workspace/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e1-contracts",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": ["src/", "schemas/", "fixtures/", "tests/", "docs/"],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": ["commit", "push", "open_pr", "merge", "release", "install_dependencies", "change_scope"],
+  "inputs": ["README.md", "docs/plan-inicial.md"],
+  "checks": [
+    {
+      "check_id": "unit_tests",
+      "expected": "exit 0"
+    }
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Reporte RAG con comandos y resultados; detenerse después.",
+  "stop_condition": "No modificar Git ni enviar instrucciones fuera de esta tarjeta.",
+  "new_decision_required_for": ["cualquier operación Git", "dependencias nuevas", "ampliación de alcance"]
+}
