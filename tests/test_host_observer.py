@@ -366,16 +366,18 @@ class ObserveToIntegrationTests(unittest.TestCase):
 class RealTmuxSmokeTest(unittest.TestCase):
     """Smoke read-only real: git + tmux reales contra el worktree y la sesión.
 
-    Se salta (skip) si los executables reales o la sesión no están presentes,
-    de modo que la suite siga siendo portable. Cuando el entorno existe,
-    observa el host real y comprueba que el preflight bloquea únicamente por
-    ``dirty`` (hay cambios sin commit en este worktree).
+    Portabilidad vía precondiones explícitas en ``setUp``: se salta (skip) sólo
+    si faltan los executables, si la sesión tmux no responde o si el worktree no
+    es un repo git. Una vez confirmado el acceso, el cuerpo del test NO atrapa
+    ``HostObserverError``: un fallo del observer (p. ej. el antiguo bug de
+    framing) se reporta como FAIL, no como skip.
     """
 
     GIT = "/usr/bin/git"
     TMUX = "/opt/homebrew/bin/tmux"
     WORKTREE = "/private/tmp/epistates-h3-slice2"
     SESSION = "epistates-h3-slice2"
+    EXPECTED_COMMAND = "opencode"
     _ENV = {
         "LC_ALL": "C", "LANG": "C", "PATH": "/usr/bin:/bin",
         "GIT_OPTIONAL_LOCKS": "0", "GIT_CONFIG_NOSYSTEM": "1",
@@ -385,6 +387,35 @@ class RealTmuxSmokeTest(unittest.TestCase):
     def setUp(self):
         if not (Path(self.GIT).exists() and Path(self.TMUX).exists()):
             self.skipTest("se requiere /usr/bin/git y /opt/homebrew/bin/tmux")
+        if not self._session_reachable():
+            self.skipTest("socket/sesión tmux no disponible")
+        if not self._worktree_is_repo():
+            self.skipTest("el worktree real no es un repo git")
+
+    def _run_probe(self, argv):
+        """Ejecuta un sondeo read-only; devuelve True si exit 0."""
+        try:
+            proc = subprocess.run(
+                argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, check=False, shell=False,
+                env=self._ENV, timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return proc.returncode == 0
+
+    def _session_reachable(self):
+        # Precondición INDEPENDIENTE del observer: ¿la sesión responde a tmux?
+        # Distingue "socket/sesión no disponible" (-> skip) de "observer
+        # defectuoso" (-> fail en el cuerpo del test).
+        return self._run_probe(
+            [self.TMUX, "list-panes", "-t", self.SESSION, "-F", "#{pane_dead}"]
+        )
+
+    def _worktree_is_repo(self):
+        return self._run_probe(
+            [self.GIT, "-C", self.WORKTREE, "rev-parse", "--show-toplevel"]
+        )
 
     def _git(self, *args):
         proc = subprocess.run(
@@ -393,6 +424,15 @@ class RealTmuxSmokeTest(unittest.TestCase):
             stderr=subprocess.PIPE, check=True, shell=False, env=self._ENV,
         )
         return proc.stdout.decode("utf-8").strip()
+
+    def _git_status_bytes(self):
+        proc = subprocess.run(
+            [self.GIT, "-C", self.WORKTREE, "status",
+             "--porcelain=v1", "--untracked-files=normal"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, check=True, shell=False, env=self._ENV,
+        )
+        return proc.stdout
 
     def _adapter(self):
         return {
@@ -434,35 +474,38 @@ class RealTmuxSmokeTest(unittest.TestCase):
             "new_decision_required_for": ["commit"],
         }
 
-    def test_real_observation_blocks_only_by_dirty(self):
-        try:
-            head = self._git("rev-parse", "HEAD")
-            branch = self._git("branch", "--show-current")
-            toplevel = self._git("rev-parse", "--show-toplevel")
-        except (OSError, subprocess.CalledProcessError, UnicodeDecodeError):
-            self.skipTest("git read falló en el worktree real")
+    def test_real_observation_matches_worktree_cleanliness(self):
+        head = self._git("rev-parse", "HEAD")
+        branch = self._git("branch", "--show-current")
+        toplevel = self._git("rev-parse", "--show-toplevel")
         repository = os.path.basename(toplevel.rstrip("/"))
+        # Cleanliness independiente: stdout exactamente vacío == limpio (mismo
+        # criterio estricto que el observer).
+        is_clean = self._git_status_bytes() == b""
         task_card = self._task_card(repository, head, branch)
         runner = ProductionHostRunner(self.GIT, self.TMUX, 10, 65536)
-        try:
-            obs = observe_opencode_tmux(
-                task_card, self.SESSION, "2026-08-11T18:00:00Z", "darwin", runner,
-            )
-        except HostObserverError:
-            self.skipTest("la sesión tmux real no es observable")
-        # El formato printable ``|`` debe preservarse: la observación trae
-        # command y path no vacíos.
+        # Sesión confirmada en setUp: NO se atrapa HostObserverError. Un fallo
+        # aquí (p. ej. bug de framing) es un defecto del observer -> FAIL.
+        obs = observe_opencode_tmux(
+            task_card, self.SESSION, "2026-08-11T18:00:00Z", "darwin", runner,
+        )
+        # El framing printable ``|`` se preserva: command y path no vacíos.
         self.assertTrue(obs["observed_command"])
         self.assertTrue(obs["observed_cwd"])
         result = evaluate_preflight(
             task_card, self._adapter(), obs,
             expected_run_id="smoke-run", expected_attempt_id="smoke-attempt",
             expected_session_name=self.SESSION,
-            expected_command=obs["observed_command"],
+            expected_command=self.EXPECTED_COMMAND,
         )
-        # Worktree con cambios sin commit -> bloqueado únicamente por dirty.
-        self.assertEqual(result["outcome"], "blocked")
-        self.assertEqual(result["reasons"], ["dirty"], result)
+        # El outcome depende del estado real del worktree: ok/[] si clean,
+        # blocked/[dirty] si dirty.
+        if is_clean:
+            self.assertEqual(result["outcome"], "ok", result)
+            self.assertEqual(result["reasons"], [], result)
+        else:
+            self.assertEqual(result["outcome"], "blocked", result)
+            self.assertEqual(result["reasons"], ["dirty"], result)
 
 
 if __name__ == "__main__":
