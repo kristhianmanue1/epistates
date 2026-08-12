@@ -1,7 +1,7 @@
 # Plan inicial — E1 contratos y conformidad
 
-**Estado:** H1 y H2 cerrados; H3 en curso (Slice1 y Slice2 aceptados; cortes
-operativos restantes abiertos).
+**Estado:** H1 y H2 cerrados; H3 en curso (Slice1, Slice2 y Slice3 aceptados;
+notificación y auditoría post-ejecución pendientes).
 **Fecha:** 2026-08-11. **Fuente:** definición fundacional y protocolo técnico
 del piloto.
 
@@ -25,7 +25,10 @@ externo.
   fail-closed con resultado portable `preflight-result/v1`) y aceptado tras
   ronda adversarial `proceed`. Slice2 implementado y aceptado tras auditoría
   independiente (observación read-only real del host vía runner inyectable y
-  `observe_opencode_tmux`); los cortes operativos restantes siguen abiertos.
+  `observe_opencode_tmux`). Slice3 implementado y aceptado tras auditoría
+  independiente (entrega literal opencode-tmux y recibo
+  `dispatch-receipt/v1`). Los cortes operativos restantes (notificación,
+  captura y auditoría post-ejecución) siguen abiertos.
 
 ## Contrato H1
 
@@ -171,6 +174,148 @@ La evidencia y los riesgos residuales aceptados están en
 [`adversarial-h3-slice2.md`](adversarial-h3-slice2.md). La decisión es
 `proceed` para Slice2; H3 completo permanece abierto.
 
+## Contrato H3 — Slice3
+
+**Entradas:** contrato H2, Slice1 y Slice2 aceptados, y la responsabilidad del
+controlador de entregar instrucciones literales al ejecutor sin convertirse en
+un deputy. **Salidas:** frontera de dispatch separada del `HostRunner`
+read-only (`TmuxLiteralDispatcher` + protocolo `LiteralDispatcher`), función de
+entrega `dispatch_literal_opencode_tmux` y recibo portable
+`epistates/dispatch-receipt/v1`.
+
+Slice3 es **sólo la entrega literal**: no implementa captura (`capture-pane`),
+ni notificación automática de finalización, ni auditoría post-ejecución. Esas
+capacidades siguen fuera de este corte y no quedan autorizadas por este
+documento. Tras el éxito completo el controlador deriva `WAITING_EXTERNAL` y se
+detiene: no observa nada después de Enter.
+
+Definition of Done de Slice3 (implementado y aceptado):
+
+- la frontera de dispatch está **separada** del `HostRunner` read-only:
+  `TmuxLiteralDispatcher` sólo emite `tmux send-keys` y no reutiliza las
+  operaciones de observación; `dispatch_literal_opencode_tmux` no acepta ni
+  construye argv del caller;
+- `dispatch_literal_opencode_tmux` valida **fail-closed el binding completo** de
+  un `preflight-result/v1` con `outcome == ok` antes de cualquier efecto; si el
+  preflight está bloqueado o mal ligado, lanza `DispatchError` **sin ninguna
+  llamada** al dispatcher;
+- exige `current_state == PREPARED`; valida sesión, `dispatched_at` inyectado,
+  mensaje acotado y **política de frescura** antes de enviar;
+- el recibo se liga al **preflight exacto** mediante `preflight_result_digest`,
+  y el binding recibe/valida el preflight completo (outcome ok, IDs, sesión y
+  `expected_command`);
+- **política de frescura inyectada** `max_preflight_age_seconds` finita, positiva
+  y acotada (techo 3600s): `dispatched_at` no puede preceder a `observed_at` ni
+  exceder la edad máxima. Todo antes de efectos. El binding recibe la política
+  **externa** del controlador (`expected_max_preflight_age_seconds`), valida los
+  mismos límites, exige **igualdad exacta** con el valor del recibo (impide
+  auto-ampliación) y rederiva la frescura con la política externa: nunca confía
+  sólo en el recibo;
+- el mensaje se valida con la **misma** función `_validate_message` en
+  orquestación, dispatcher público y binding; longitud UTF-8 mínima 1;
+- la entrega usa **exactamente dos** llamadas cerradas e inyectables, en orden:
+  (1) `tmux send-keys -l -t SESSION -- MESSAGE` (literal, argv list, `shell=False`,
+  terminador `--` antes del mensaje) y (2) `tmux send-keys -t SESSION Enter` en
+  llamada separada. El caller nunca aporta argv ni se concatena shell;
+- el mensaje rechaza NUL, surrogates y todo control C0 excepto LF (más DEL);
+  preserva texto multilínea literal. TAB y CR se rechazan como controles
+  peligrosos en contexto terminal;
+- el dispatcher de producción usa executable absoluto, timeout finito en
+  `(0, 60]`, entorno mínimo construido desde cero (sin `PATH`/`HOME`/`TMUX*`) y
+  stdout/stderr/exit estrictos (cualquier byte en stdout/stderr o exit no cero
+  es anomalía). Aplica validación completa de sesión y mensaje **aun en uso
+  directo**;
+- **pre cálculo completo antes del primer send**: digests (tarjeta, adaptador,
+  preflight, mensaje), transición `PREPARED -> DISPATCHED -> WAITING_EXTERNAL` y
+  recibo base se calculan antes de llamar al dispatcher. Tras un Enter exitoso
+  no queda canonicalización, validación ni transición capaz de lanzar;
+- **no reintenta automáticamente** con **tres categorías** de fallo:
+  `DispatchError` (pre-efecto, nada intentado), `IndeterminateDispatchError`
+  (fase 1 intentada y fallada ambiguamente; el literal pudo entregarse) y
+  `PartialDispatchError` (literal confirmado, Enter indeterminado). Ninguna
+  reintenta: un reintento duplicaría el literal;
+- el recibo `dispatch-receipt/v1` **no guarda el prompt**: sólo IDs/digests
+  ligados (incluido `preflight_result_digest`), sesión, `dispatched_at` inyectado,
+  `max_preflight_age_seconds`, digest y longitud UTF-8 del mensaje,
+  `phases_confirmed == [send_literal, send_enter]` (orden fijado por schema con
+  `prefixItems`/`items:false`), `final_state == WAITING_EXTERNAL` y
+  `confirms == "technical_transport_only"`;
+- tras éxito completo deriva `DISPATCHED` y `WAITING_EXTERNAL` (precalculados)
+  y no observa nada después de Enter (sin `capture-pane`, sin `list-panes`, sin
+  polling);
+- el CLI registra `dispatch-receipt/v1`, exige binding completo (`--task-card`,
+  `--adapter-capabilities`, `--preflight-result`, `--run-id`, `--attempt-id`,
+  `--expected-session-name`, `--expected-command`, `--max-preflight-age-seconds`
+  y `--message-file`), lee el `--message-file` de forma **acotada y
+  anti-TOCTOU** (como mucho `límite+1` bytes; `stat` es sólo optimización) y
+  rechaza de forma global cualquier opción de binding inaplicable al schema
+  (incluidos `--preflight-result` y `--max-preflight-age-seconds`): ninguna
+  opción inaplicable se ignora silenciosamente;
+- la suite unittest termina en verde.
+
+Decisiones de diseño de Slice3:
+
+- **`send-keys -l` + `--` para el literal.** `-l` (literal) envía el texto como
+  bytes y nunca como nombre de tecla; `--` termina opciones para que un mensaje
+  que empiece en `-` no se interprete como flag. Enter va en llamada separada
+  **sin** `-l` para que tmux lo interprete como pulsación y complete la entrada.
+- **Tres categorías, no dos.** Un fallo de fase 1 **no** implica "nada
+  entregado": una vez invocado `send_literal_text`, timeout/OSError/exit anómalo
+  son resultado **indeterminado** (el literal pudo entregarse). De ahí
+  `IndeterminateDispatchError`, distinta del `DispatchError` pre-efecto. La fase
+  2 mantiene `PartialDispatchError` (literal confirmado, Enter indeterminado).
+  Ninguna categoría reintenta: la duplicación silenciosa queda excluida.
+- **Pre cálculo antes del efecto.** Todo lo que pueda fallar (digests,
+  transición, recibo) se calcula antes del primer send. Un Enter exitoso sólo
+  devuelve el resultado precalculado: no puede fallar tras el efecto.
+- **Frescura externa, no auto-amplificable.** El recibo registra
+  `preflight_result_digest` y `max_preflight_age_seconds`, pero el binding no
+  confía en ese último: recibe la política externa del controlador
+  (`expected_max_preflight_age_seconds`), exige igualdad exacta y re_deriva la
+  frescura con ella. Así mutar `dispatched_at` y `max_preflight_age_seconds` en
+  un recibo no permite evadir la política del controlador.
+- **Lectura anti-TOCTOU del message-file.** `stat` es sólo una optimización; la
+  barrera real es leer como mucho `límite+1` bytes y rechazar si sobra. Un
+  archivo que crezca entre `stat` y `read` (o un `stat` mentiroso) nunca se
+  carga arbitrariamente grande.
+- **Política de mensaje compartida.** `_validate_message` es la única política,
+  usada idénticamente en orquestación, dispatcher público y binding, para que
+  las tres capas coincidan y un mensaje vacío no sea aceptable en ninguna.
+- **Sin socket `-L`/`-S`.** v1 asume el socket tmux por defecto derivado del
+  UID. El entorno mínimo excluye `TMUX`/`TMUX_TMPDIR` para que el caller no
+  redirija el socket. Soportar sockets explícitos queda para un corte posterior.
+- **Recibo = transporte, no comprensión.** `confirms == "technical_transport_only"`
+  deja explícito que el recibo atestigua que tmux aceptó `send-keys`, no que el
+  agente leyó, comprendió o acató la instrucción.
+- **TAB y CR rechazados.** Sólo LF es necesario para texto multilínea. En un
+  terminal TAB dispara completado y CR es ambiguo; rechazarlos es la opción
+  fail-closed.
+
+Riesgos residuales aceptados de Slice3:
+
+- el recibo confirma **transporte técnico**, no recepción/comprensión por el
+  agente: si el TUI del ejecutor no procesó el literal, el recibo lo omite. La
+  auditoría post-ejecución (futura) es la que contrasta el reporte con evidencia
+  independiente;
+- `max_output_bytes` se aplica después de que `subprocess.run` captura la
+  salida: no es aislamiento de memoria del SO (misma limitación documentada en
+  Slice2);
+- un fallo indeterminado (`IndeterminateDispatchError`) deja resultado
+  desconocido y requiere intervención humana; un fallo parcial
+  (`PartialDispatchError`) deja el literal confirmado sin Enter. En ambos casos
+  el estado no avanza y no hay recuperación automática por diseño;
+- el límite de 8192 bytes UTF-8 por mensaje (`_MESSAGE_MAX_BYTES`) puede
+  rechazar instrucciones largas legítimas; es un techo conservador de v1;
+- una sesión tmux en un socket no por defecto (`-L`/`-S`) no es soportada;
+- el recibo exige el `message` para verificar su digest (el controlador lo
+  retiene). El CLI expone esto mediante `--message-file`: el archivo es texto
+  UTF-8 crudo, sin recortes ni normalización, y su tamaño se acota antes de
+  cargarlo por completo.
+
+La evidencia y los riesgos residuales aceptados están en
+[`adversarial-h3-slice3.md`](adversarial-h3-slice3.md). La decisión es
+`proceed` para Slice3; H3 completo permanece abierto.
+
 ### Reproducibilidad del DoD
 
 El intérprete del auditor es el venv editable del worktree principal:
@@ -196,4 +341,12 @@ PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates 
   --adapter-capabilities fixtures/adapter-capabilities-opencode-tmux.json \
   --run-id run-001 --attempt-id attempt-001 \
   --expected-session-name epistates-opencode --expected-command idle
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates validate fixtures/dispatch-receipt-ok.json \
+  --task-card fixtures/task-card-valid.json \
+  --adapter-capabilities fixtures/adapter-capabilities-opencode-tmux.json \
+  --preflight-result fixtures/preflight-result-ok.json \
+  --run-id run-001 --attempt-id attempt-001 \
+  --expected-session-name epistates-opencode --expected-command idle \
+  --max-preflight-age-seconds 600 \
+  --message-file fixtures/dispatch-message.txt
 ```

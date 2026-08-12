@@ -1,9 +1,14 @@
 import io
+import json
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from epistates.__main__ import main
+from epistates.contracts import ValidationError
+from epistates.dispatch import _MESSAGE_MAX_BYTES
 
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
@@ -107,3 +112,178 @@ class CliValidationTests(unittest.TestCase):
         )
         self.assertEqual(code, 1)
         self.assertIn("sólo aplican", output)
+
+def _dispatch_receipt_args():
+    return [
+        "validate", str(FIXTURES / "dispatch-receipt-ok.json"),
+        "--task-card", str(FIXTURES / "task-card-valid.json"),
+        "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+        "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        "--run-id", "run-001", "--attempt-id", "attempt-001",
+        "--expected-session-name", "epistates-opencode",
+        "--expected-command", "idle",
+        "--max-preflight-age-seconds", "600",
+        "--message-file", str(FIXTURES / "dispatch-message.txt"),
+    ]
+
+
+class CliDispatchReceiptTests(unittest.TestCase):
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_dispatch_receipt_requires_full_binding(self):
+        code, output = self.call("validate", str(FIXTURES / "dispatch-receipt-ok.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("dispatch-receipt requiere", output)
+        for option in ("--preflight-result", "--expected-command",
+                       "--max-preflight-age-seconds", "--message-file"):
+            self.assertIn(option, output)
+
+    def test_dispatch_receipt_binds_valid(self):
+        code, output = self.call(*_dispatch_receipt_args())
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_dispatch_receipt_wrong_message_is_invalid(self):
+        args = [a for a in _dispatch_receipt_args()]
+        # Sustituye el message-file por otro archivo (digest distinto).
+        args[-1] = str(FIXTURES / "task-card-valid.json")
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("message_digest", output)
+
+    def test_dispatch_receipt_missing_max_age_lists_option(self):
+        args = [a for a in _dispatch_receipt_args()
+                if a != "--max-preflight-age-seconds" and a != "600"]
+        # '--max-preflight-age-seconds' y '600' son adyacentes; el filtro los
+        # elimina ambos. Verifica ausencia antes de llamar.
+        self.assertNotIn("--max-preflight-age-seconds", args)
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("--max-preflight-age-seconds", output)
+
+    def test_dispatch_receipt_bad_max_age_is_invalid(self):
+        args = _dispatch_receipt_args()
+        args[args.index("600")] = "not-a-number"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("--max-preflight-age-seconds debe ser un número", output)
+
+    def test_dispatch_receipt_auto_amplified_policy_is_invalid(self):
+        # Repro (A): la política externa (CLI) es 600; un recibo que reclama 3600
+        # y dispatched 19:00 se rechaza por igualdad de política.
+        receipt = json.loads((FIXTURES / "dispatch-receipt-ok.json").read_text("utf-8"))
+        receipt["dispatched_at"] = "2026-08-11T19:00:00Z"
+        receipt["max_preflight_age_seconds"] = 3600
+        tmp = FIXTURES / "dispatch-receipt-autoamplified.json"
+        tmp.write_text(json.dumps(receipt), encoding="utf-8")
+        try:
+            args = _dispatch_receipt_args()
+            args[1] = str(tmp)
+            code, output = self.call(*args)
+        finally:
+            tmp.unlink()
+        self.assertEqual(code, 1)
+        self.assertIn("política esperada", output)
+
+
+class CliInapplicableBindingOptionsTests(unittest.TestCase):
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_task_card_rejects_preflight_result_option(self):
+        # Repro (B): --preflight-result no puede ignorarse para task-card.
+        code, output = self.call(
+            "validate", str(FIXTURES / "task-card-valid.json"),
+            "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_task_card_rejects_max_age_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "task-card-valid.json"),
+            "--max-preflight-age-seconds", "600",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_preflight_result_rejects_preflight_result_option(self):
+        # Repro (B): --preflight-result al propio preflight-result no se ignora.
+        code, output = self.call(
+            "validate", str(FIXTURES / "preflight-result-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode", "--expected-command", "idle",
+            "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican a dispatch-receipt", output)
+
+    def test_preflight_result_rejects_max_age_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "preflight-result-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode", "--expected-command", "idle",
+            "--max-preflight-age-seconds", "600",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican a dispatch-receipt", output)
+
+    def test_audit_result_rejects_preflight_result_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "audit-result-valid.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_adapter_capabilities_rejects_max_age_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--max-preflight-age-seconds", "600",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+
+class CliBoundedMessageReadTests(unittest.TestCase):
+    def test_oversized_message_file_rejected_via_stat_fast_path(self):
+        # stat es optimización: un stat que reporta > límite se rechaza antes.
+        fake_stat = SimpleNamespace(st_size=_MESSAGE_MAX_BYTES + 1)
+        output = io.StringIO()
+        with patch("pathlib.Path.stat", return_value=fake_stat), \
+                redirect_stdout(output):
+            code = main(_dispatch_receipt_args())
+        self.assertEqual(code, 1)
+        self.assertIn("excede el límite", output.getvalue())
+
+    def test_read_growing_after_stat_is_rejected(self):
+        # TOCTOU: stat miente (10 bytes), pero read devuelve limit+1 -> rechazo
+        # por la barrera de lectura acotada, no por stat.
+        import io as _io
+        from epistates.__main__ import _read_bounded_message
+        path = FIXTURES / "dispatch-message.txt"
+        big = b"x" * (_MESSAGE_MAX_BYTES + 1)
+        with patch("pathlib.Path.stat", return_value=SimpleNamespace(st_size=10)), \
+                patch("pathlib.Path.open", return_value=_io.BytesIO(big)):
+            with self.assertRaises(ValidationError) as exc:
+                _read_bounded_message(path, _MESSAGE_MAX_BYTES)
+        self.assertIn("excede el límite", str(exc.exception))
+
+    def test_bounded_read_accepts_within_limit(self):
+        from epistates.__main__ import _read_bounded_message
+        path = FIXTURES / "dispatch-message.txt"
+        raw = _read_bounded_message(path, _MESSAGE_MAX_BYTES)
+        self.assertEqual(raw.decode("utf-8"), path.read_text(encoding="utf-8"))

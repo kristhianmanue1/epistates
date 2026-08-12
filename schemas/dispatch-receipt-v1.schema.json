@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistates.dev/schemas/dispatch-receipt-v1.schema.json",
+  "title": "Epistates dispatch receipt v1",
+  "description": "Recibo portable mínimo de una entrega literal, ligado al preflight exacto. Confirma transporte técnico (tmux aceptó send-keys), no comprensión del agente ni autoridad. No guarda el prompt: sólo digest y longitud UTF-8.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "preflight_result_digest", "adapter_id", "session_name", "dispatched_at", "max_preflight_age_seconds", "message_digest", "message_length_utf8", "phases_confirmed", "final_state", "confirms"],
+  "properties": {
+    "schema": {"const": "epistates/dispatch-receipt/v1"},
+    "task_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "attempt_id": {"$ref": "#/$defs/id"},
+    "task_card_digest": {"$ref": "#/$defs/digest"},
+    "adapter_digest": {"$ref": "#/$defs/digest"},
+    "preflight_result_digest": {"$ref": "#/$defs/digest"},
+    "adapter_id": {"$ref": "#/$defs/id"},
+    "session_name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"},
+    "dispatched_at": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "max_preflight_age_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+    "message_digest": {"$ref": "#/$defs/digest"},
+    "message_length_utf8": {"type": "integer", "minimum": 1, "maximum": 8192},
+    "phases_confirmed": {
+      "type": "array",
+      "prefixItems": [{"const": "send_literal"}, {"const": "send_enter"}],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "final_state": {"const": "WAITING_EXTERNAL"},
+    "confirms": {"const": "technical_transport_only"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

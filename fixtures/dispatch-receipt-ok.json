@@ -1,0 +1,18 @@
+{
+  "schema": "epistates/dispatch-receipt/v1",
+  "task_id": "e1-contracts",
+  "run_id": "run-001",
+  "attempt_id": "attempt-001",
+  "task_card_digest": "sha256:c14c033bd0e001a4db801f99e5ab60dc75dee7c4ca597305740124e95113d3c9",
+  "adapter_digest": "sha256:5427ac8135d2d16e813e2104a17aad11bb2cd4e133b3e4fea6994a103bde56bd",
+  "preflight_result_digest": "sha256:2b4748558d43146b20e81705d0a83da96b2635b1eb411c4269b8c7ac02385f2c",
+  "adapter_id": "opencode-tmux",
+  "session_name": "epistates-opencode",
+  "dispatched_at": "2026-08-11T18:00:00Z",
+  "max_preflight_age_seconds": 600,
+  "message_digest": "sha256:2c092a74ad325c854f048760ee3d947f1cb166e2b4ba7f9c53f41a6c62a12fb3",
+  "message_length_utf8": 68,
+  "phases_confirmed": ["send_literal", "send_enter"],
+  "final_state": "WAITING_EXTERNAL",
+  "confirms": "technical_transport_only"
+}

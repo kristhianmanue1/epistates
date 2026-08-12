@@ -1,0 +1,1 @@
+Ejecuta el corte H3-Slice3: entrega literal opencode-tmux y detente.
