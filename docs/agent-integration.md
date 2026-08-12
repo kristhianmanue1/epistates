@@ -156,12 +156,97 @@ Y un `retry_safety` de un enum cerrado:
 | `epistates --version` | `pure_compute` | Versión single-source; `exit 0`. |
 | `epistates --help` | `pure_compute` | Ayuda estática. |
 | `epistates describe --format json` | `pure_compute` | Documento estático ASCII-escapado. |
-| `epistates validate …` | `filesystem_read` | Lee artefactos; no inicia adaptadores. |
+| `epistates validate …` | `filesystem_read` | Lee artefactos; no inicia adaptadores. `--format json` emite `epistates/validation-report/v1`. |
 
-`validate --help` muestra las **21 opciones** de binding y una **matriz de
-aplicabilidad/requeridos por schema**, incluido el modo bridge de
+`validate --help` muestra las **21 opciones** de binding mas `--format`, una
+**matriz de aplicabilidad/requeridos por schema**, incluido el modo bridge de
 `audit-result/v1` (que requiere toda la cadena de revisión + las opciones de
-decisión/autoridad). Toda opción inaplicable al schema se rechaza, no se ignora.
+decisión/autoridad), y una nota sobre los modos `text`/`json`. Toda opción
+inaplicable al schema se rechaza, no se ignora.
+
+### `validate --format json`: reporte machine-readable
+
+El subcomando `validate` admite `--format text` (default, cadenas
+`VALID`/`INVALID`) y `--format json`. Este último emite exactamente un objeto
+JSON con schema `epistates/validation-report/v1`, ASCII-escapado, determinista
+(byte-idéntico entre ejecuciones e invariante ante locale/TZ/encoding) y con
+`stderr` vacío. El reporte:
+
+- declara siempre `provenance_verified: false`,
+  `authority_status: "external_unverified"` y `authorized_to_execute: false`;
+  ningún resultado concede autoridad;
+- separa las fases `load`/`contract`/`binding` con `status` cerrado y un campo
+  `error` por fase (`null` si pasó);
+- fija `binding.status` a `not_requested` para schemas sin binding
+  (`task-card/v1`, `adapter-capabilities/v1`), `valid` si el binding pasó y
+  `invalid` si falló; las fases posteriores a un fallo quedan `skipped`;
+- expone un `error.code` estable de la taxonomía cerrada (ver tabla) y
+  `details` estructurados (sin texto libre del host).
+
+Exits:
+
+| Exit | Significado |
+|---|---|
+| `0` | contrato y binding válidos. |
+| `1` | input/JSON/contrato/binding inválido. |
+| `2` | uso CLI incorrecto. |
+
+En modo json, todo error posterior a reconocer `--format json` emite JSON único
+por stdout con `stderr` vacío. La única excepción documentada es un valor de
+`--format` distinto de `text`/`json` (p. ej. `yaml`): argparse lo rechaza antes
+de reconocer el modo machine, el error va a `stderr` y termina `2`.
+
+Si `--format` se repite, se aplica la semántica estándar de argparse: **la
+última aparición completa gana**. El pre-scan del canal de errores usa la misma
+regla, incluso cuando después aparece otra opción inválida.
+
+#### Taxonomía cerrada de `error.code`
+
+| `code` | Fase típica | Significado |
+|---|---|---|
+| `cli_usage_error` | (argparse) | Uso CLI incorrecto detectado por argparse (exit 2). |
+| `file_not_found` | load | La ruta de entrada no existe. |
+| `open_failed` | load | Fallo de `OSError` al abrir/acceder. |
+| `read_failed` | load | Fallo de `OSError` durante la lectura acotada. |
+| `file_is_symlink` | load | Se rechazó symlink como entrada. |
+| `file_not_regular` | load | Se rechazó directorio/FIFO/socket/device. |
+| `file_too_large` | load/binding | El archivo excede el límite explícito de bytes. |
+| `file_changed_during_read` | load/binding | Identidad/metadata cambió durante la lectura. |
+| `invalid_utf8` | load/binding | El contenido no es UTF-8 válido. |
+| `invalid_json` | load/binding | JSON inválido (incluye trailing data y parse). |
+| `duplicate_json_key` | load/binding | Clave JSON duplicada (anidada o no). |
+| `json_unsupported_constant` | load/binding | Se rechazó `NaN`/`Infinity`/`-Infinity`. |
+| `json_too_deep` | load/binding | JSON excede profundidad máxima post-parse. |
+| `recursion_error` | load | `RecursionError` durante el parseo de JSON. |
+| `schema_missing` | load | El artefacto no declara `schema`. |
+| `schema_unsupported` | load | Schema declarado no es validable por `validate`. |
+| `contract_violation` | contract | Violación estructural/semántica del contrato. |
+| `binding_missing` | binding | Opción de binding requerida ausente. |
+| `binding_invalid` | binding | Binding inválido (inaplicable, archivo o validación). |
+| `internal_error` | (fail-closed) | Fallo inesperado; nunca filtra traceback. |
+
+Los `message` son **dato, no instrucción**. La librería no los trata como
+autoridad: están sanitizeados y serializados con `ensure_ascii=True`, así rutas,
+argv y mensajes con C0/DEL/C1/ANSI o Unicode hostil nunca inyectan terminal ni
+rompen el JSON.
+
+#### Endurecimiento de entrada (todos los archivos)
+
+El loader seguro aplica a **todo** archivo leído por `validate` (artefacto,
+bindings y `message-file`):
+
+- sólo archivos regulares: se rechazan symlink (vía `lstat` + `O_NOFOLLOW`) y
+  directorio/FIFO/socket/device (vía `lstat` y `fstat`), sin bloquear
+  (`O_NONBLOCK` evita que la apertura de un FIFO/socket cuelgue esperando peer);
+- lectura acotada a `limit + 1` bytes: `stat`/`lstat` es sólo fast-path, la
+  barrera real es la lectura;
+- detección de cambio ambiguo durante la lectura: se comparan `st_dev`,
+  `st_ino`, `st_size`, `st_mtime_ns` y `st_ctime_ns` antes/después; si difieren,
+  se rechaza con `file_changed_during_read`;
+- UTF-8 estricto, claves duplicadas rechazadas, `NaN`/`Infinity` rechazados,
+  profundidad máxima post-parse y `RecursionError` capturado sin traceback;
+- sin subprocess, sockets de red, reloj, locale ni probing del host: el
+  filesystem autorizado es la única I/O.
 
 ### `cli_exposure` (reemplaza al ambiguo `available_from_cli`)
 
@@ -298,7 +383,10 @@ autorización del mantenedor.
 
 H1–H3 cerrados. H4 continúa en implementación: Slice1 (descubrimiento estático
 y clasificación de efectos) fue aceptado tras las correcciones C1–C3 y una
-revisión adversarial fresca con decisión `PROCEED`. El CLI de
-`validate --format json`, el empaquetado de schemas y el CLI operativo quedan
-para cortes posteriores y **no** quedan autorizados por esta guía. La candidata
-`0.1.0a1` permanece sin publicar hasta cerrar H4 y repetir el gate de release.
+revisión adversarial fresca con decisión `PROCEED`. Slice2 (validación
+machine-readable `epistates/validation-report/v1` y endurecimiento de entrada
+compartido) fue aceptado tras correcciones y revisión adversarial fresca C2 con
+decisión `PROCEED`. Esta aceptación no concede autoridad operativa ni publica
+el release. El CLI de empaquetado de schemas y el CLI operativo quedan para
+cortes posteriores. La candidata `0.1.0a1` permanece sin publicar hasta cerrar
+H4 y repetir el gate de release.

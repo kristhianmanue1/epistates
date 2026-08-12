@@ -261,32 +261,44 @@ class CliInapplicableBindingOptionsTests(unittest.TestCase):
 
 class CliBoundedMessageReadTests(unittest.TestCase):
     def test_oversized_message_file_rejected_via_stat_fast_path(self):
-        # stat es optimización: un stat que reporta > límite se rechaza antes.
-        fake_stat = SimpleNamespace(st_size=_MESSAGE_MAX_BYTES + 1)
+        # lstat pre-check: st_size > limit se rechaza antes de abrir (fail-closed).
+        # La barrera real sigue siendo la lectura acotada; stat es sólo fast-path.
+        import stat as _stat
+        fake_stat = SimpleNamespace(
+            st_mode=_stat.S_IFREG, st_size=_MESSAGE_MAX_BYTES + 1,
+            st_dev=1, st_ino=1, st_mtime_ns=1, st_ctime_ns=1,
+        )
         output = io.StringIO()
-        with patch("pathlib.Path.stat", return_value=fake_stat), \
+        with patch("os.lstat", return_value=fake_stat), \
                 redirect_stdout(output):
             code = main(_dispatch_receipt_args())
         self.assertEqual(code, 1)
         self.assertIn("excede el límite", output.getvalue())
 
     def test_read_growing_after_stat_is_rejected(self):
-        # TOCTOU: stat miente (10 bytes), pero read devuelve limit+1 -> rechazo
+        # TOCTOU: lstat miente (10 bytes), pero read devuelve limit+1 -> rechazo
         # por la barrera de lectura acotada, no por stat.
-        import io as _io
-        from epistates.__main__ import _read_bounded_message
+        import stat as _stat
+        from epistates.__main__ import _safe_read_regular_file
         path = FIXTURES / "dispatch-message.txt"
         big = b"x" * (_MESSAGE_MAX_BYTES + 1)
-        with patch("pathlib.Path.stat", return_value=SimpleNamespace(st_size=10)), \
-                patch("pathlib.Path.open", return_value=_io.BytesIO(big)):
-            with self.assertRaises(ValidationError) as exc:
-                _read_bounded_message(path, _MESSAGE_MAX_BYTES)
+        small = SimpleNamespace(
+            st_mode=_stat.S_IFREG, st_size=10,
+            st_dev=1, st_ino=1, st_mtime_ns=1, st_ctime_ns=1,
+        )
+        with patch("os.lstat", return_value=small), \
+                patch("os.open", return_value=42), \
+                patch("os.fstat", return_value=small), \
+                patch("os.read", return_value=big), \
+                patch("os.close"):
+            with self.assertRaises(Exception) as exc:
+                _safe_read_regular_file(path, _MESSAGE_MAX_BYTES)
         self.assertIn("excede el límite", str(exc.exception))
 
     def test_bounded_read_accepts_within_limit(self):
-        from epistates.__main__ import _read_bounded_message
+        from epistates.__main__ import _safe_read_message_file
         path = FIXTURES / "dispatch-message.txt"
-        raw = _read_bounded_message(path, _MESSAGE_MAX_BYTES)
+        raw = _safe_read_message_file(path, _MESSAGE_MAX_BYTES)
         self.assertEqual(raw.decode("utf-8"), path.read_text(encoding="utf-8"))
 
 

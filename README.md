@@ -45,7 +45,10 @@ Carácter del CLI:
 - `--version`, `--help` y `describe --format json` son **estáticos**: no sondean
   el host, no abren sockets, no inician procesos externos y no leen el reloj.
 - `validate` hace **I/O de filesystem** (lee los artefactos JSON del disco), pero
-  no inicia adaptadores ni resuelve checks.
+  no inicia adaptadores ni resuelve checks. Todo archivo (artefacto, bindings y
+  `message-file`) pasa por un loader seguro: sólo archivos regulares, lectura
+  acotada, anti-TOCTOU, UTF-8 estricto y rechazo de claves duplicadas, NaN,
+  Infinity, JSON profundo y `RecursionError`.
 
 La validez de un artefacto no constituye autorización. Desde un venv donde el
 wheel esté instalado:
@@ -63,7 +66,23 @@ epistates validate path/to/task-card.json
 
 # equivalente vía módulo
 python -m epistates validate path/to/task-card.json
+
+# validación consumible por agentes: un único objeto JSON ASCII-escapado
+# epistates/validation-report/v1 con taxonomía de errores cerrada y exits 0/1/2
+epistates validate path/to/task-card.json --format json
 ```
+
+`validate` admite `--format text` (default, cadenas `VALID`/`INVALID`) y
+`--format json` (reporte machine-readable). El reporte JSON es determinista
+(byte-idéntico entre ejecuciones e invariante ante locale/TZ/encoding), fija
+`provenance_verified: false`, `authority_status: external_unverified` y
+`authorized_to_execute: false`, y separa las fases `load`/`contract`/`binding`
+con una taxonomía estable de `error.code`. Exits: `0` contrato/binding válido,
+`1` input/JSON/contrato/binding inválido, `2` uso CLI incorrecto. En modo json,
+cualquier error posterior a reconocer `--format json` emite un único JSON por
+stdout con `stderr` vacío; el único límite documentado es que un valor de
+`--format` distinto de `text`/`json` (p. ej. `yaml`) se rechaza por argparse
+antes de reconocer el modo machine y se reporta a stderr con exit `2`.
 
 Para desarrollo local sin instalar (liga las fuentes del checkout):
 

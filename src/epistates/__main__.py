@@ -11,10 +11,26 @@ Carácter estático vs. I/O:
 Superficie:
 
 - ``epistates --version``: versión single-source del paquete (exit 0).
-- ``epistates validate <artifact> [--binding ...]``: valida artefacto + binding.
+- ``epistates validate <artifact> [--binding ...] [--format text|json]``:
+  valida artefacto + binding. En ``--format json`` emite exactamente un objeto
+  ``epistates/validation-report/v1`` ASCII-escapado, determinista, con
+  ``stderr`` vacío y taxonomía de errores cerrada; en ``--format text``
+  (default) conserva las cadenas ``VALID``/``INVALID`` compatibles.
 - ``epistates describe --format json``: documento estático
   ``epistates/discovery/v1`` (un único JSON determinista en stdout, stderr
   vacío, ASCII-escapado y robusto ante locale/encoding).
+
+Códigos de salida (Slice2):
+
+- ``0``: contrato y binding válidos.
+- ``1``: entrada/JSON/contrato/binding inválido.
+- ``2``: uso CLI incorrecto.
+
+En ``--format json`` todo error posterior a reconocer el modo machine produce
+un único JSON en stdout y ``stderr`` vacío. La única excepción documentada es
+un uso argparse incorrecto que argparse rechaza antes de reconocer
+``--format json`` (p. ej. ``--format yaml``): ahí el error va a ``stderr`` en
+modo texto y termina ``2``.
 
 No existe CLI operativo para observe/dispatch/review/audit: esas operaciones
 requieren autoridad externa y runners inyectados, y quedan fuera del alcance
@@ -23,10 +39,12 @@ estático de descubrimiento.
 
 import argparse
 import json
+import os
 import re
+import stat
 import sys
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ._version import __version__
 from .adapter import validate_adapter_capabilities
@@ -38,6 +56,20 @@ from .discovery import render_discovery_json
 from .human_notice import validate_human_notice, validate_human_notice_binding
 from .preflight import validate_preflight_binding, validate_preflight_result
 from .review import validate_review_evidence, validate_review_evidence_binding
+
+
+# ---------------------------------------------------------------------------
+# Schema del reporte machine-readable publicado por este corte.
+# ---------------------------------------------------------------------------
+
+_REPORT_SCHEMA = "epistates/validation-report/v1"
+_REPORT_VERSION = "v1"
+
+# Límite de bytes por artefacto JSON leído por validate (1 MiB). Mensajes van
+# por su propio límite (_MESSAGE_MAX_BYTES).
+_ARTIFACT_MAX_BYTES = 1 * 1024 * 1024
+# Profundidad JSON máxima imposta explícitamente después del parse.
+_MAX_JSON_DEPTH = 100
 
 
 _VALIDATORS = {
@@ -91,35 +123,152 @@ _APPLICABLE = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Errores clasificados para el reporte machine-readable.
+# ---------------------------------------------------------------------------
+
+
+class ValidateError(Exception):
+    """Base de errores clasificados para el reporte machine-readable.
+
+    Cada instancia declara la ``phase`` (``load``/``contract``/``binding``) que
+    falló, un ``code`` estable de la taxonomía cerrada, el ``message`` saneado,
+    el ``artifact_schema`` conocido hasta el fallo (o ``None``) y ``details``
+    estructurados. ``completed_phases`` registra las fases anteriores que sí
+    pasaron, para que el reporte las marque como ``valid``.
+    """
+
+    __slots__ = (
+        "phase", "code", "message", "artifact_schema", "details",
+        "completed_phases",
+    )
+
+    def __init__(
+        self, phase: str, code: str, message: str,
+        *,
+        artifact_schema: Optional[str] = None,
+        details: Optional[Mapping[str, Any]] = None,
+        completed_phases: Optional[Sequence[str]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.phase = phase
+        self.code = code
+        self.message = message
+        self.artifact_schema = artifact_schema
+        self.details = dict(details) if details else {}
+        self.completed_phases = list(completed_phases or [])
+
+
+class HardenedFileError(ValueError):
+    """Error de carga endurecida con código estable + ruta origen.
+
+    Se lanza desde el loader seguro (``_safe_read_regular_file`` y
+    ``_safe_load_json_file``); la fase de validación que lo invoque lo
+    reclasifica en ``ValidateError`` conservando ``code``/``details``.
+    """
+
+    def __init__(
+        self, code: str, message: str, path: str,
+        *, details: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.path = path
+        self.details = dict(details) if details else {}
+
+
+# ---------------------------------------------------------------------------
+# Detección de modo machine (pre-scan de argv).
+# ---------------------------------------------------------------------------
+#
+# ``argparse`` procesa argv de izquierda a derecha. Cuando reconoce un uso
+# incorrecto llama a ``parser.error()`` que por defecto imprime a stderr y
+# llama a ``sys.exit(2)``. En modo machine queremos que ese mismo camino emita
+# el reporte JSON a stdout y mantenga ``stderr`` vacío.
+#
+# Para decidir el modo antes de cualquier parse, hacemos un pre-scan simple de
+# argv buscando ``--format json`` o ``--format=json`` como valor del
+# subcomando ``validate``. Esto cubre tanto errores de argparse como errores
+# posteriores (carga, contrato, binding).
+
+_MACHINE_MODE = False
+
+
+def _set_machine_mode(enabled: bool) -> None:
+    global _MACHINE_MODE
+    _MACHINE_MODE = bool(enabled)
+
+
+def _machine_mode_enabled() -> bool:
+    return _MACHINE_MODE
+
+
+def _argv_has_format_json(argv: Sequence[str]) -> bool:
+    """Refleja la semántica last-wins de argparse para ``--format``.
+
+    Una aparición final sin valor conserva la última selección completa: el
+    error de uso ocurrió después de que esa selección ya fue reconocida.
+    """
+    selected: Optional[str] = None
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token == "--format":
+            # Un token que empieza por '-' es otra opción, no un valor
+            # completo de --format. Argparse lo rechazará por uso, pero el
+            # canal conserva la última selección completa reconocida.
+            if i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+                selected = argv[i + 1]
+                i += 2
+                continue
+            i += 1
+            continue
+        if token.startswith("--format="):
+            selected = token.split("=", 1)[1]
+        i += 1
+    return selected == "json"
+
+
+def _detect_machine_mode(argv: Optional[Sequence[str]]) -> bool:
+    """True iff argv corresponde a ``validate ... --format json``.
+
+    Exige que el primer token no-opción sea ``validate``: el modo machine es
+    exclusivo del subcomando ``validate``. ``describe --format json`` sigue
+    emitiendo ``epistates/discovery/v1`` (no es reporte de validación).
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+    subcommand: Optional[str] = None
+    for token in argv:
+        if not isinstance(token, str):
+            return False
+        if token.startswith("-"):
+            continue
+        subcommand = token
+        break
+    if subcommand != "validate":
+        return False
+    return _argv_has_format_json(argv)
+
+
+# ---------------------------------------------------------------------------
+# Helpers de binding y números.
+# ---------------------------------------------------------------------------
+
+
 def _reject_duplicate_keys(pairs):
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValidationError(f"clave JSON duplicada: {key!r}")
+            raise ValueError(f"clave JSON duplicada: {key!r}")
         result[key] = value
     return result
 
 
-def _load_json(path: Path) -> Any:
-    with path.open(encoding="utf-8") as handle:
-        return json.load(handle, object_pairs_hook=_reject_duplicate_keys)
-
-
-def _read_bounded_message(path: Path, limit: int) -> bytes:
-    """Lee el mensaje con barrera anti-TOCTOU.
-
-    ``stat`` es sólo una optimización (fast path): la barrera real es leer como
-    mucho ``limit + 1`` bytes y rechazar si sobra cualquiera. Así un archivo que
-    crezca entre ``stat`` y ``read`` (o un ``stat`` que mienta) nunca carga un
-    archivo arbitrariamente grande.
-    """
-    if path.stat().st_size > limit:
-        raise ValidationError("message-file excede el límite de bytes")
-    with path.open("rb") as handle:
-        raw = handle.read(limit + 1)
-    if len(raw) > limit:
-        raise ValidationError("message-file excede el límite de bytes")
-    return raw
+def _reject_json_constant(value: str) -> None:
+    """Rechaza NaN/Infinity/-Infinity: no son valores JSON canónicos."""
+    raise ValueError(f"constante JSON no soportada: {value}")
 
 
 def _provided_binding_options(args) -> set:
@@ -188,6 +337,326 @@ def _parse_number(value: Optional[str], name: str) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Carga segura compartida: archivo regular, lectura acotada, anti-TOCTOU.
+# ---------------------------------------------------------------------------
+#
+# Todo archivo leído por ``validate`` (artefacto, bindings y message-file) pasa
+# por el mismo loader. Las garantías, todas fail-closed:
+#
+# - Sólo archivos regulares: se rechazan symlink (vía lstat + O_NOFOLLOW),
+#   directorio, FIFO, socket y device, sin bloquear (O_NONBLOCK evita que la
+#   apertura de un FIFO/socket cuelgue esperando un peer).
+# - Apertura fail-closed: se valida el descriptor real con fstat.
+# - Límite explícito por archivo: lectura ``limit + 1`` (stat es sólo
+#   optimización/fast-path).
+# - Detección de cambio ambiguo durante la lectura: se comparan identidad
+#   (st_dev/st_ino) y metadata (st_size/st_mtime_ns/st_ctime_ns) antes/después
+#   de leer; si difieren, se rechaza con código estable.
+# - UTF-8 estricto, claves duplicadas, NaN/Infinity, JSON profundo y
+#   RecursionError rechazados sin traceback.
+#
+# La salida machine es ensure_ascii: rutas, argv y mensajes con C0/DEL/C1/ANSI
+# o Unicode hostil nunca inyectan terminal ni rompen el JSON.
+
+
+def _file_kind_name(mode: int) -> str:
+    if stat.S_ISDIR(mode):
+        return "directory"
+    if stat.S_ISFIFO(mode):
+        return "fifo"
+    if stat.S_ISSOCK(mode):
+        return "socket"
+    if stat.S_ISCHR(mode):
+        return "char_device"
+    if stat.S_ISBLK(mode):
+        return "block_device"
+    return "unknown"
+
+
+def _metadata_snapshot(st: os.stat_result) -> Dict[str, Any]:
+    return {
+        "st_dev": st.st_dev,
+        "st_ino": st.st_ino,
+        "st_size": st.st_size,
+        "st_mtime_ns": st.st_mtime_ns,
+        "st_ctime_ns": st.st_ctime_ns,
+    }
+
+
+def _metadata_differs(a: os.stat_result, b: os.stat_result) -> bool:
+    return (
+        a.st_dev != b.st_dev
+        or a.st_ino != b.st_ino
+        or a.st_size != b.st_size
+        or a.st_mtime_ns != b.st_mtime_ns
+        or a.st_ctime_ns != b.st_ctime_ns
+    )
+
+
+def _read_bounded_fd(fd: int, max_bytes: int) -> bytes:
+    """Lee como mucho ``max_bytes`` desde ``fd`` sin capturar más allá."""
+    chunks: List[bytes] = []
+    remaining = max_bytes
+    while remaining > 0:
+        try:
+            chunk = os.read(fd, remaining)
+        except OSError as exc:
+            raise HardenedFileError(
+                "read_failed", f"fallo de lectura: {exc}", "",
+            )
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _safe_read_regular_file(path: Path, limit: int) -> bytes:
+    """Lee como mucho ``limit`` bytes de un archivo regular, fail-closed.
+
+    Secuencia:
+      1. ``lstat`` pre-check: rechaza symlink Y todo archivo no regular
+         (directorio/FIFO/socket/device) antes de intentar abrir. Evita
+         edge-cases como que ``os.open`` sobre un socket devuelva ENXIO.
+      2. ``os.open`` con ``O_RDONLY | O_NOFOLLOW | O_NONBLOCK``: nunca sigue un
+         symlink en el componente final y no bloquea en FIFO/socket.
+      3. ``fstat`` del descriptor real: exige archivo regular (defensa en
+         profundidad ante TOCTOU entre lstat y open).
+      4. Lectura acotada a ``limit + 1`` bytes.
+      5. ``fstat`` post-lectura: compara identidad y metadata. Si difieren,
+         falla cerrado (``file_changed_during_read``).
+      6. Si se leyeron más de ``limit`` bytes, falla cerrado (``file_too_large``).
+    """
+    p = str(path)
+
+    # 1. lstat pre-check.
+    try:
+        lst = os.lstat(p)
+    except FileNotFoundError as exc:
+        raise HardenedFileError(
+            "file_not_found", f"archivo no encontrado: {p}", p,
+        ) from exc
+    except OSError as exc:
+        raise HardenedFileError(
+            "open_failed", f"no se pudo acceder al archivo: {p}", p,
+        ) from exc
+
+    if stat.S_ISLNK(lst.st_mode):
+        raise HardenedFileError(
+            "file_is_symlink",
+            f"se rechaza symlink como entrada: {p}", p,
+        )
+    if not stat.S_ISREG(lst.st_mode):
+        kind = _file_kind_name(lst.st_mode)
+        raise HardenedFileError(
+            "file_not_regular",
+            f"se rechaza entrada no regular ({kind}): {p}",
+            p,
+            details={"kind": kind},
+        )
+
+    # Fast-path: stat reporting > limit -> rechazar antes de abrir.
+    if lst.st_size > limit:
+        raise HardenedFileError(
+            "file_too_large",
+            f"archivo excede el límite de {limit} bytes",
+            p,
+            details={"limit_bytes": limit, "st_size": lst.st_size},
+        )
+
+    # 2. Open fail-closed.
+    try:
+        fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as exc:
+        raise HardenedFileError(
+            "open_failed", f"no se pudo abrir el archivo: {p}", p,
+        ) from exc
+
+    try:
+        # 3. fstat del descriptor real (defensa anti-TOCTOU lstat -> open).
+        try:
+            before = os.fstat(fd)
+        except OSError as exc:
+            raise HardenedFileError(
+                "open_failed", f"fstat falló: {p}", p,
+            ) from exc
+        if not stat.S_ISREG(before.st_mode):
+            kind = _file_kind_name(before.st_mode)
+            raise HardenedFileError(
+                "file_not_regular",
+                f"se rechaza entrada no regular ({kind}): {p}",
+                p,
+                details={"kind": kind},
+            )
+
+        # 4. Lectura acotada.
+        raw = _read_bounded_fd(fd, limit + 1)
+
+        # 5. fstat post-lectura: detectar cambio ambiguo.
+        try:
+            after = os.fstat(fd)
+        except OSError as exc:
+            raise HardenedFileError(
+                "file_changed_during_read",
+                f"fstat post-lectura falló: {p}", p,
+            ) from exc
+        if _metadata_differs(before, after):
+            raise HardenedFileError(
+                "file_changed_during_read",
+                f"el archivo cambió durante la lectura: {p}",
+                p,
+                details={
+                    "before": _metadata_snapshot(before),
+                    "after": _metadata_snapshot(after),
+                },
+            )
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+    # 6. Tamaño real leído.
+    if len(raw) > limit:
+        raise HardenedFileError(
+            "file_too_large",
+            f"archivo excede el límite de {limit} bytes",
+            p,
+            details={"limit_bytes": limit, "read_bytes": len(raw)},
+        )
+
+    return raw
+
+
+def _safe_load_json_file(path: Path, limit: int = _ARTIFACT_MAX_BYTES) -> Any:
+    """Carga JSON desde disco vía ``_safe_read_regular_file`` + parser seguro."""
+    p = str(path)
+    raw = _safe_read_regular_file(path, limit)
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HardenedFileError(
+            "invalid_utf8",
+            f"UTF-8 inválido en {p}: {exc}",
+            p,
+            details={"reason": str(exc)},
+        ) from exc
+
+    return _parse_json_safe(text, p)
+
+
+def _parse_json_safe(text: str, source_path: str) -> Any:
+    """Parser JSON con claves duplicadas, NaN/Infinity, profundidad y RecursionError."""
+    try:
+        parsed = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_json_constant,
+        )
+    except json.JSONDecodeError as exc:
+        raise HardenedFileError(
+            "invalid_json",
+            f"JSON inválido en {source_path}: {exc}",
+            source_path,
+            details={"line": exc.lineno, "column": exc.colno, "position": exc.pos},
+        ) from exc
+    except ValueError as exc:
+        msg = str(exc)
+        if "duplicada" in msg:
+            raise HardenedFileError(
+                "duplicate_json_key", msg, source_path,
+            ) from exc
+        if "constante JSON no soportada" in msg:
+            raise HardenedFileError(
+                "json_unsupported_constant", msg, source_path,
+            ) from exc
+        raise HardenedFileError(
+            "invalid_json", f"JSON inválido en {source_path}: {msg}", source_path,
+        ) from exc
+    except RecursionError as exc:
+        raise HardenedFileError(
+            "recursion_error",
+            f"RecursionError parseando {source_path}: JSON demasiado profundo",
+            source_path,
+        ) from exc
+
+    depth = _measure_depth(parsed)
+    if depth > _MAX_JSON_DEPTH:
+        raise HardenedFileError(
+            "json_too_deep",
+            (
+                f"JSON excede profundidad máxima {_MAX_JSON_DEPTH} "
+                f"en {source_path}"
+            ),
+            source_path,
+            details={"max_depth": _MAX_JSON_DEPTH, "measured_depth": depth},
+        )
+    return parsed
+
+
+def _measure_depth(node: Any) -> int:
+    """Profundidad máxima anidada; iterativa con tope para no colgar."""
+    if not isinstance(node, (dict, list)):
+        return 0
+    max_seen = 0
+    stack: List[Tuple[Any, int]] = [(node, 1)]
+    while stack:
+        item, depth = stack.pop()
+        if depth > max_seen:
+            max_seen = depth
+            if max_seen > _MAX_JSON_DEPTH:
+                return max_seen
+        if isinstance(item, dict):
+            for value in item.values():
+                if isinstance(value, (dict, list)):
+                    stack.append((value, depth + 1))
+        else:  # list
+            for value in item:
+                if isinstance(value, (dict, list)):
+                    stack.append((value, depth + 1))
+    return max_seen
+
+
+def _safe_read_message_file(path: Path, limit: int = _MESSAGE_MAX_BYTES) -> bytes:
+    """Lee el message-file por la misma ruta segura (archivo regular acotado).
+
+    Conserva el contrato del ``message-file`` previo: lectura acotada a
+    ``limit`` bytes, anti-TOCTOU, sin seguir symlinks. El dispatcher sigue
+    aplicando ``_validate_message`` sobre los bytes decodificados.
+    """
+    return _safe_read_regular_file(path, limit)
+
+
+def _safe_load_message_text(
+    path: Path, limit: int = _MESSAGE_MAX_BYTES,
+) -> str:
+    """Carga el mensaje como UTF-8 estricto conservando el código estable.
+
+    El mensaje no es JSON, pero forma parte del binding y debe recibir el mismo
+    tratamiento fail-closed que los artefactos auxiliares. En particular, un
+    byte inválido se reporta como ``invalid_utf8`` y no se degrada al genérico
+    ``binding_invalid``.
+    """
+    raw = _safe_read_message_file(path, limit)
+    p = str(path)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HardenedFileError(
+            "invalid_utf8",
+            f"UTF-8 inválido en {p}: {exc}",
+            p,
+            details={"reason": str(exc)},
+        ) from exc
+
+
+def _read_bounded_message(path: Path, limit: int) -> bytes:
+    """Backward-compat shim; equivalente a ``_safe_read_message_file``."""
+    return _safe_read_message_file(path, limit)
+
+
+# ---------------------------------------------------------------------------
 # Sanitización de errores argparse: argv con cualquier Unicode Cc no contamina.
 # ---------------------------------------------------------------------------
 
@@ -211,11 +680,31 @@ def _escape_control_chars(value: str) -> str:
     return _CONTROL_CHAR.sub(_replace, value)
 
 
+def _safe_for_json_string(value: Any) -> Optional[str]:
+    """Convierte ``value`` a string saneado para uso como campo JSON.
+
+    Descarta cualquier cosa que no sea ``str``/``Path`` (no inferimos): el
+    reporte prefiere ``null`` a un valor fabricado.
+    """
+    if value is None:
+        return None
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, str):
+        return value
+    return None
+
+
 class _SafeArgumentParser(argparse.ArgumentParser):
-    """Parser que sanea argv reflejado en errores antes de imprimir a stderr."""
+    """Parser que sanea argv reflejado en errores; JSON en modo machine."""
 
     def error(self, message: str):  # type: ignore[override]
-        super().error(_escape_control_chars(message))
+        sanitized = _escape_control_chars(message)
+        if _machine_mode_enabled():
+            report = _build_usage_error_report(sanitized)
+            sys.stdout.write(render_report_json(report))
+            sys.exit(2)
+        super().error(sanitized)
 
 
 class _FixedWidthHelpFormatter(argparse.RawDescriptionHelpFormatter):
@@ -275,6 +764,12 @@ def _format_applicability_matrix() -> str:
         "Toda opcion de binding inaplicable al schema se rechaza (no se "
         "ignora). Un valor invalido termina exit 1; un uso incorrecto exit 2."
     )
+    lines.append("")
+    lines.append(
+        "--format text (default) emite 'VALID: <path>'/'INVALID: <msg>'; "
+        "--format json emite un unico objeto epistates/validation-report/v1 "
+        "ASCII-escapado con taxonomia de errores cerrada y exit codes 0/1/2."
+    )
     return "\n".join(lines)
 
 
@@ -283,9 +778,12 @@ def _build_parser() -> "_SafeArgumentParser":
 
     Usa ``_SafeArgumentParser`` (sanitiza argv en errores) y ``parser_class``
     para que los subparsers hereden el mismo comportamiento.
+    ``allow_abbrev=False`` garantiza que el pre-scan de modo machine coincida
+    exactamente con el parseo (``--form`` no se expande a ``--format``).
     """
     parser = _SafeArgumentParser(
         prog="epistates",
+        allow_abbrev=False,
         description=(
             "Epistates: supervisor contractual de agentes externos.\n"
             "Caracter: --version/--help/describe son estaticos (no sondean el "
@@ -307,11 +805,12 @@ def _build_parser() -> "_SafeArgumentParser":
         help="Imprime la version single-source del paquete y termina (exit 0).",
     )
     subparsers = parser.add_subparsers(
-        dest="command", required=True, parser_class=_SafeArgumentParser
+        dest="command", required=True, parser_class=_SafeArgumentParser,
     )
 
     validate = subparsers.add_parser(
         "validate",
+        allow_abbrev=False,
         help="validar un artefacto sin ejecutar checks ni iniciar adaptadores",
         description=(
             "Valida un artefacto y, segun el schema, su binding completo, sin "
@@ -325,6 +824,18 @@ def _build_parser() -> "_SafeArgumentParser":
     validate.add_argument(
         "card", type=Path, metavar="artifact",
         help="Artefacto a validar (JSON con campo 'schema'); se lee de disco.",
+    )
+    validate.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help=(
+            "Formato de salida. 'text' (default): salida VALID/INVALID "
+            "compatible. 'json': un unico objeto epistates/validation-report/v1 "
+            "ASCII-escapado, determinista, con taxonomia de errores cerrada y "
+            "exits 0/1/2. En modo json, todo error posterior a reconocer el "
+            "modo emite JSON unico por stdout con stderr vacio."
+        ),
     )
     validate.add_argument(
         "--task-card", type=Path,
@@ -415,6 +926,7 @@ def _build_parser() -> "_SafeArgumentParser":
 
     describe = subparsers.add_parser(
         "describe",
+        allow_abbrev=False,
         help="emitir el documento de descubrimiento estatico (epistates/discovery/v1)",
         description=(
             "Emite exactamente un documento JSON con schema "
@@ -432,117 +944,42 @@ def _build_parser() -> "_SafeArgumentParser":
     return parser
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    # ``main`` NO muta los streams del caller (encoding/errors). La salida
-    # estatica (--version/--help/describe) es ASCII y robusta bajo cualquier
-    # locale/encoding; describe se serializa ASCII-escapado. El saneamiento y
-    # JSON estable de la salida textual de validate queda reservado a Slice2.
-    parser = _build_parser()
-    args = parser.parse_args(argv)
-    if args.command == "describe":
-        # Estatico y determinista: stdout = unico JSON ASCII, stderr vacio.
-        sys.stdout.write(render_discovery_json())
-        return 0
-    try:
-        artifact = _load_json(args.card)
-        if not isinstance(artifact, dict) or artifact.get("schema") not in _VALIDATORS:
-            raise ValidationError("schema ausente o no soportado")
-        schema = artifact["schema"]
-        # Validación estructural propia del schema.
-        _VALIDATORS[schema](artifact)
-        # Modo puente del audit-result: cuando lleva ``review_evidence_digest``
-        # se exige el binding completo a review-evidence + decisión inyectada.
-        audit_review_mode = (
-            schema == "epistates/audit-result/v1"
-            and "review_evidence_digest" in artifact
-        )
+# ---------------------------------------------------------------------------
+# Ejecución por fases (load -> contract -> binding).
+# ---------------------------------------------------------------------------
+
+
+def _classify_binding_policy_error(exc: ValidationError) -> Tuple[str, str]:
+    """Mapea el mensaje de política de binding a (code, schema_label).
+
+    ``... requiere ...`` indica opción requerida ausente -> ``binding_missing``;
+    cualquier otra política (opción inaplicable) -> ``binding_invalid``.
+    """
+    message = str(exc)
+    if " requiere " in message:
+        return "binding_missing", message
+    return "binding_invalid", message
+
+
+def _dispatch_binding(
+    schema: str, artifact: Mapping[str, Any],
+    audit_review_mode: bool, args,
+) -> None:
+    """Carga los archivos de binding y llama al validador de binding del schema.
+
+    Todos los archivos pasan por ``_safe_load_json_file`` /
+    ``_safe_read_message_file`` (endurecimiento compartido). Los errores se
+    levantan como ``HardenedFileError`` (código estable) o como excepciones de
+    los validadores; la fase que llama reclasifica.
+    """
+    if schema == "epistates/audit-result/v1":
+        task_card = _safe_load_json_file(args.task_card)
         if audit_review_mode:
-            # En modo puente todas las opciones son aplicables y requeridas.
-            _require_audit_review_options(args)
-        else:
-            # Comprobación de aplicabilidad de opciones (antes del binding).
-            _check_applicability(schema, args)
-            if schema in _APPLICABLE and _APPLICABLE[schema]:
-                _require_applicable(schema, args)
-        # Binding por schema.
-        if schema == "epistates/audit-result/v1":
-            task_card = _load_json(args.task_card)
-            if audit_review_mode:
-                adapter = _load_json(args.adapter_capabilities)
-                preflight_result = _load_json(args.preflight_result)
-                dispatch_receipt = _load_json(args.dispatch_receipt)
-                human_notice = _load_json(args.human_notice)
-                review_evidence = _load_json(args.review_evidence)
-                expected_max_preflight = _parse_number(
-                    args.max_preflight_age_seconds, "--max-preflight-age-seconds"
-                )
-                expected_max_dispatch = _parse_number(
-                    args.max_dispatch_age_seconds, "--max-dispatch-age-seconds"
-                )
-                expected_max_notice = _parse_number(
-                    args.max_notice_age_seconds, "--max-notice-age-seconds"
-                )
-                message = _read_bounded_message(
-                    args.message_file, _MESSAGE_MAX_BYTES
-                ).decode("utf-8")
-                expected_max_audit = _parse_number(
-                    args.max_audit_age_seconds, "--max-audit-age-seconds"
-                )
-                validate_audit_review_binding(
-                    artifact, review_evidence, task_card, adapter,
-                    preflight_result, dispatch_receipt, human_notice,
-                    args.run_id, args.attempt_id,
-                    args.expected_session_name, args.expected_command,
-                    expected_max_preflight, message,
-                    expected_max_dispatch, expected_max_notice,
-                    args.expected_classification, args.expected_decision,
-                    args.expected_decision_reference,
-                    args.expected_observed_at, expected_max_audit,
-                    args.expected_grant_id, args.expected_grant_digest,
-                )
-            else:
-                validate_audit_binding(artifact, task_card, args.run_id, args.attempt_id)
-        elif schema == "epistates/preflight-result/v1":
-            task_card = _load_json(args.task_card)
-            adapter = _load_json(args.adapter_capabilities)
-            validate_preflight_binding(
-                artifact, task_card, adapter, args.run_id, args.attempt_id,
-                args.expected_session_name, args.expected_command,
-            )
-        elif schema == "epistates/dispatch-receipt/v1":
-            task_card = _load_json(args.task_card)
-            adapter = _load_json(args.adapter_capabilities)
-            preflight_result = _load_json(args.preflight_result)
-            expected_max_age = _parse_number(
-                args.max_preflight_age_seconds, "--max-preflight-age-seconds"
-            )
-            message = _read_bounded_message(
-                args.message_file, _MESSAGE_MAX_BYTES
-            ).decode("utf-8")
-            validate_dispatch_receipt_binding(
-                artifact, task_card, adapter, preflight_result,
-                args.run_id, args.attempt_id,
-                args.expected_session_name, args.expected_command,
-                expected_max_age, message,
-            )
-        elif schema == "epistates/human-notice/v1":
-            task_card = _load_json(args.task_card)
-            adapter = _load_json(args.adapter_capabilities)
-            dispatch_receipt = _load_json(args.dispatch_receipt)
-            expected_max_dispatch = _parse_number(
-                args.max_dispatch_age_seconds, "--max-dispatch-age-seconds"
-            )
-            validate_human_notice_binding(
-                artifact, task_card, adapter, dispatch_receipt,
-                args.run_id, args.attempt_id,
-                args.expected_session_name, expected_max_dispatch,
-            )
-        elif schema == "epistates/review-evidence/v1":
-            task_card = _load_json(args.task_card)
-            adapter = _load_json(args.adapter_capabilities)
-            preflight_result = _load_json(args.preflight_result)
-            dispatch_receipt = _load_json(args.dispatch_receipt)
-            human_notice = _load_json(args.human_notice)
+            adapter = _safe_load_json_file(args.adapter_capabilities)
+            preflight_result = _safe_load_json_file(args.preflight_result)
+            dispatch_receipt = _safe_load_json_file(args.dispatch_receipt)
+            human_notice = _safe_load_json_file(args.human_notice)
+            review_evidence = _safe_load_json_file(args.review_evidence)
             expected_max_preflight = _parse_number(
                 args.max_preflight_age_seconds, "--max-preflight-age-seconds"
             )
@@ -552,22 +989,399 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             expected_max_notice = _parse_number(
                 args.max_notice_age_seconds, "--max-notice-age-seconds"
             )
-            message = _read_bounded_message(
+            message = _safe_load_message_text(
                 args.message_file, _MESSAGE_MAX_BYTES
-            ).decode("utf-8")
-            validate_review_evidence_binding(
-                artifact, task_card, adapter, preflight_result,
-                dispatch_receipt, human_notice,
+            )
+            expected_max_audit = _parse_number(
+                args.max_audit_age_seconds, "--max-audit-age-seconds"
+            )
+            validate_audit_review_binding(
+                artifact, review_evidence, task_card, adapter,
+                preflight_result, dispatch_receipt, human_notice,
                 args.run_id, args.attempt_id,
                 args.expected_session_name, args.expected_command,
                 expected_max_preflight, message,
                 expected_max_dispatch, expected_max_notice,
+                args.expected_classification, args.expected_decision,
+                args.expected_decision_reference,
+                args.expected_observed_at, expected_max_audit,
+                args.expected_grant_id, args.expected_grant_digest,
             )
-    except (OSError, UnicodeError, json.JSONDecodeError, ValidationError) as exc:
-        print(f"INVALID: {exc}")
-        return 1
-    print(f"VALID: {args.card}")
-    return 0
+        else:
+            validate_audit_binding(artifact, task_card, args.run_id, args.attempt_id)
+    elif schema == "epistates/preflight-result/v1":
+        task_card = _safe_load_json_file(args.task_card)
+        adapter = _safe_load_json_file(args.adapter_capabilities)
+        validate_preflight_binding(
+            artifact, task_card, adapter, args.run_id, args.attempt_id,
+            args.expected_session_name, args.expected_command,
+        )
+    elif schema == "epistates/dispatch-receipt/v1":
+        task_card = _safe_load_json_file(args.task_card)
+        adapter = _safe_load_json_file(args.adapter_capabilities)
+        preflight_result = _safe_load_json_file(args.preflight_result)
+        expected_max_age = _parse_number(
+            args.max_preflight_age_seconds, "--max-preflight-age-seconds"
+        )
+        message = _safe_load_message_text(
+            args.message_file, _MESSAGE_MAX_BYTES
+        )
+        validate_dispatch_receipt_binding(
+            artifact, task_card, adapter, preflight_result,
+            args.run_id, args.attempt_id,
+            args.expected_session_name, args.expected_command,
+            expected_max_age, message,
+        )
+    elif schema == "epistates/human-notice/v1":
+        task_card = _safe_load_json_file(args.task_card)
+        adapter = _safe_load_json_file(args.adapter_capabilities)
+        dispatch_receipt = _safe_load_json_file(args.dispatch_receipt)
+        expected_max_dispatch = _parse_number(
+            args.max_dispatch_age_seconds, "--max-dispatch-age-seconds"
+        )
+        validate_human_notice_binding(
+            artifact, task_card, adapter, dispatch_receipt,
+            args.run_id, args.attempt_id,
+            args.expected_session_name, expected_max_dispatch,
+        )
+    elif schema == "epistates/review-evidence/v1":
+        task_card = _safe_load_json_file(args.task_card)
+        adapter = _safe_load_json_file(args.adapter_capabilities)
+        preflight_result = _safe_load_json_file(args.preflight_result)
+        dispatch_receipt = _safe_load_json_file(args.dispatch_receipt)
+        human_notice = _safe_load_json_file(args.human_notice)
+        expected_max_preflight = _parse_number(
+            args.max_preflight_age_seconds, "--max-preflight-age-seconds"
+        )
+        expected_max_dispatch = _parse_number(
+            args.max_dispatch_age_seconds, "--max-dispatch-age-seconds"
+        )
+        expected_max_notice = _parse_number(
+            args.max_notice_age_seconds, "--max-notice-age-seconds"
+        )
+        message = _safe_load_message_text(
+            args.message_file, _MESSAGE_MAX_BYTES
+        )
+        validate_review_evidence_binding(
+            artifact, task_card, adapter, preflight_result,
+            dispatch_receipt, human_notice,
+            args.run_id, args.attempt_id,
+            args.expected_session_name, args.expected_command,
+            expected_max_preflight, message,
+            expected_max_dispatch, expected_max_notice,
+        )
+
+
+def _validate_phases(args) -> Tuple[Optional[str], str]:
+    """Ejecuta load -> contract -> binding y devuelve (schema, binding_status).
+
+    Raises ``ValidateError`` clasificado por fase en cualquier fallo.
+    ``binding_status`` es ``not_requested``/``valid`` sólo en éxito.
+    """
+    # Phase: load.
+    try:
+        artifact = _safe_load_json_file(args.card, _ARTIFACT_MAX_BYTES)
+    except HardenedFileError as exc:
+        raise ValidateError(
+            "load", exc.code, exc.message,
+            artifact_schema=None,
+            details=dict(exc.details),
+        ) from exc
+
+    if not isinstance(artifact, Mapping):
+        raise ValidateError(
+            "load", "schema_missing",
+            "el artefacto no es un objeto JSON",
+        )
+
+    schema_value = artifact.get("schema")
+    schema_str = schema_value if isinstance(schema_value, str) else None
+    if schema_str not in _VALIDATORS:
+        if schema_str is None:
+            raise ValidateError(
+                "load", "schema_missing",
+                "schema ausente o no es texto",
+                artifact_schema=None,
+            )
+        raise ValidateError(
+            "load", "schema_unsupported",
+            f"schema no soportado: {schema_str}",
+            artifact_schema=schema_str,
+        )
+
+    # Phase: contract.
+    try:
+        _VALIDATORS[schema_str](artifact)
+    except ValidationError as exc:
+        raise ValidateError(
+            "contract", "contract_violation", str(exc),
+            artifact_schema=schema_str,
+            completed_phases=["load"],
+        ) from exc
+
+    # Phase: binding.
+    audit_review_mode = (
+        schema_str == "epistates/audit-result/v1"
+        and "review_evidence_digest" in artifact
+    )
+
+    try:
+        if audit_review_mode:
+            _require_audit_review_options(args)
+        else:
+            _check_applicability(schema_str, args)
+            applicable = _APPLICABLE.get(schema_str, frozenset())
+            if applicable:
+                _require_applicable(schema_str, args)
+    except ValidationError as exc:
+        code, message = _classify_binding_policy_error(exc)
+        raise ValidateError(
+            "binding", code, message,
+            artifact_schema=schema_str,
+            completed_phases=["load", "contract"],
+        ) from exc
+
+    needs_binding = audit_review_mode or bool(_APPLICABLE.get(schema_str, frozenset()))
+    if not needs_binding:
+        return schema_str, "not_requested"
+
+    try:
+        _dispatch_binding(schema_str, artifact, audit_review_mode, args)
+    except HardenedFileError as exc:
+        details = dict(exc.details)
+        if exc.path:
+            details["path"] = exc.path
+        raise ValidateError(
+            "binding", exc.code, exc.message,
+            artifact_schema=schema_str,
+            details=details,
+            completed_phases=["load", "contract"],
+        ) from exc
+    except ValidationError as exc:
+        code, message = _classify_binding_policy_error(exc)
+        raise ValidateError(
+            "binding", code, message,
+            artifact_schema=schema_str,
+            completed_phases=["load", "contract"],
+        ) from exc
+    except (ValueError, TypeError) as exc:
+        raise ValidateError(
+            "binding", "binding_invalid", str(exc),
+            artifact_schema=schema_str,
+            completed_phases=["load", "contract"],
+        ) from exc
+
+    return schema_str, "valid"
+
+
+# ---------------------------------------------------------------------------
+# Reporte machine-readable ``epistates/validation-report/v1``.
+# ---------------------------------------------------------------------------
+
+
+def _empty_phases() -> Dict[str, Dict[str, Any]]:
+    return {
+        "load": {"status": "skipped", "error": None},
+        "contract": {"status": "skipped", "error": None},
+        "binding": {"status": "skipped", "error": None},
+    }
+
+
+def _error_obj(error: ValidateError) -> Dict[str, Any]:
+    return {
+        "code": error.code,
+        "message": error.message,
+        "details": dict(error.details) if error.details else {},
+    }
+
+
+def _build_success_report(
+    args, schema: Optional[str], binding_status: str,
+) -> Dict[str, Any]:
+    phases = _empty_phases()
+    phases["load"]["status"] = "valid"
+    phases["contract"]["status"] = "valid"
+    phases["binding"]["status"] = binding_status
+    return {
+        "schema": _REPORT_SCHEMA,
+        "validation_report_version": _REPORT_VERSION,
+        "package_version": __version__,
+        "artifact_path": _safe_for_json_string(getattr(args, "card", None)),
+        "artifact_schema": schema,
+        "provenance_verified": False,
+        "authority_status": "external_unverified",
+        "authorized_to_execute": False,
+        "result": "valid",
+        "exit_code": 0,
+        "error": None,
+        "phases": phases,
+    }
+
+
+def _build_failure_report(args, error: ValidateError) -> Dict[str, Any]:
+    phases = _empty_phases()
+    for completed in error.completed_phases:
+        if completed in phases:
+            phases[completed]["status"] = "valid"
+    phases[error.phase]["status"] = "invalid"
+    phases[error.phase]["error"] = _error_obj(error)
+    artifact_path = _safe_for_json_string(getattr(args, "card", None))
+    return {
+        "schema": _REPORT_SCHEMA,
+        "validation_report_version": _REPORT_VERSION,
+        "package_version": __version__,
+        "artifact_path": artifact_path,
+        "artifact_schema": error.artifact_schema,
+        "provenance_verified": False,
+        "authority_status": "external_unverified",
+        "authorized_to_execute": False,
+        "result": "invalid",
+        "exit_code": 1,
+        "error": _error_obj(error),
+        "phases": phases,
+    }
+
+
+def _build_usage_error_report(message: str) -> Dict[str, Any]:
+    return {
+        "schema": _REPORT_SCHEMA,
+        "validation_report_version": _REPORT_VERSION,
+        "package_version": __version__,
+        "artifact_path": None,
+        "artifact_schema": None,
+        "provenance_verified": False,
+        "authority_status": "external_unverified",
+        "authorized_to_execute": False,
+        "result": "invalid",
+        "exit_code": 2,
+        "error": {
+            "code": "cli_usage_error",
+            "message": message,
+            "details": {},
+        },
+        "phases": _empty_phases(),
+    }
+
+
+def build_validation_report_dict(
+    args, schema: Optional[str], binding_status: str,
+    error: Optional[ValidateError],
+) -> Dict[str, Any]:
+    """Construye el dict del reporte (público para tests/discovery)."""
+    if error is not None:
+        return _build_failure_report(args, error)
+    return _build_success_report(args, schema, binding_status)
+
+
+def render_report_json(report: Mapping[str, Any]) -> str:
+    """Serializa el reporte a JSON determinista, ASCII-escapado + newline."""
+    return json.dumps(report, ensure_ascii=True, sort_keys=False) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Reporte: códigos de error publicados (taxonomía cerrada).
+# ---------------------------------------------------------------------------
+#
+# Esta lista es la fuente canónica de la taxonomía que documenta el reporte y
+# la guía de integración. Cualquier adición debe reflejarse en docs/.
+
+_ERROR_TAXONOMY: Tuple[Tuple[str, str], ...] = (
+    ("cli_usage_error", "uso CLI incorrecto detectado por argparse (exit 2)"),
+    ("file_not_found", "la ruta de entrada no existe"),
+    ("open_failed", "fallo de OSError al abrir/acceder al archivo"),
+    ("read_failed", "fallo de OSError durante la lectura acotada"),
+    ("file_is_symlink", "se rechazó symlink como entrada"),
+    ("file_not_regular", "se rechazó directorio/FIFO/socket/device"),
+    ("file_too_large", "el archivo excede el límite explícito de bytes"),
+    ("file_changed_during_read", "identidad/metadata cambió durante la lectura"),
+    ("invalid_utf8", "el contenido no es UTF-8 válido"),
+    ("invalid_json", "JSON inválido (incluye trailing data y errores de parse)"),
+    ("duplicate_json_key", "se rechazó clave JSON duplicada (anidada o no)"),
+    ("json_unsupported_constant", "se rechazó NaN/Infinity/-Infinity"),
+    ("json_too_deep", "JSON excede profundidad máxima post-parse"),
+    ("recursion_error", "RecursionError durante el parseo de JSON"),
+    ("schema_missing", "el artefacto no declara schema"),
+    ("schema_unsupported", "schema declarado no es validable por validate"),
+    ("contract_violation", "violación estructural/semántica del contrato"),
+    ("binding_missing", "opción de binding requerida ausente"),
+    ("binding_invalid", "binding inválido (inaplicable, archivo o validación)"),
+    ("internal_error", "fallo inesperado (fail-closed genérico)"),
+)
+
+
+def error_taxonomy() -> Tuple[Tuple[str, str], ...]:
+    """Taxonomía cerrada de ``error.code`` publicada por el reporte."""
+    return tuple(_ERROR_TAXONOMY)
+
+
+def report_schema() -> str:
+    return _REPORT_SCHEMA
+
+
+def report_version() -> str:
+    return _REPORT_VERSION
+
+
+def artifact_max_bytes() -> int:
+    return _ARTIFACT_MAX_BYTES
+
+
+def max_json_depth() -> int:
+    return _MAX_JSON_DEPTH
+
+
+# ---------------------------------------------------------------------------
+# main().
+# ---------------------------------------------------------------------------
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    # Pre-scan para decidir modo machine antes de construir el parser. Así los
+    # errores de argparse en modo machine emiten el reporte JSON por stdout.
+    _set_machine_mode(_detect_machine_mode(argv))
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+
+    if args.command == "describe":
+        # Estatico y determinista: stdout = unico JSON ASCII, stderr vacio.
+        sys.stdout.write(render_discovery_json())
+        return 0
+
+    # validate command.
+    schema: Optional[str] = None
+    binding_status = "not_requested"
+    error: Optional[ValidateError] = None
+
+    try:
+        schema, binding_status = _validate_phases(args)
+    except ValidateError as exc:
+        error = exc
+    except RecursionError as exc:
+        # Fail-closed genérico para recursion fuera del parser JSON.
+        error = ValidateError(
+            "load", "recursion_error",
+            "RecursionError inesperado durante la validación",
+        )
+    except Exception as exc:  # pragma: no cover - fail-closed genérico.
+        # Nunca filtramos traceback: emitimos un error estable.
+        error = ValidateError(
+            "load", "internal_error",
+            "fallo inesperado durante la validación",
+        )
+
+    if args.format == "json":
+        report = build_validation_report_dict(
+            args, schema, binding_status, error,
+        )
+        sys.stdout.write(render_report_json(report))
+        return report["exit_code"]
+
+    # text mode (default): cadenas VALID/INVALID compatibles.
+    if error is None:
+        print(f"VALID: {args.card}")
+        return 0
+    print(f"INVALID: {error.message}")
+    return 1
 
 
 if __name__ == "__main__":

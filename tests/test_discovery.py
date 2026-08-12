@@ -521,8 +521,8 @@ class ParserManifestTests(unittest.TestCase):
             a for a in validate._actions
             if a.option_strings and a.option_strings[0] not in ("-h", "--help")
         ]
-        # 21 opciones de binding (sin -h).
-        self.assertEqual(len(options), 21)
+        # 21 opciones de binding + --format (text|json) = 22 (sin -h).
+        self.assertEqual(len(options), 22)
 
     def test_bridge_matrix_lists_explicit_complete_set(self):
         matrix = _format_applicability_matrix()

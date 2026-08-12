@@ -48,6 +48,14 @@ _SCHEMAS_VALIDATABLE: List[str] = [
     "epistates/review-evidence/v1",
 ]
 
+# Schemas que ``epistates`` EMITE como salida (no son inputs validables).
+# Slice2: ``validate --format json`` produce ``epistates/validation-report/v1``.
+# ``epistates/discovery/v1`` lo emite ``describe --format json``.
+_SCHEMAS_OUTPUT: List[str] = [
+    "epistates/discovery/v1",
+    "epistates/validation-report/v1",
+]
+
 _ANY_PLATFORM = ("any",)
 _TMUX_PLATFORMS = ("darwin", "linux")
 
@@ -234,7 +242,12 @@ _CLI_SURFACE: List[Dict[str, Any]] = [
             "I/O de archivos (filesystem_read); el acceso a las rutas requiere "
             "autoridad del caller (filesystem). No es pure_compute ni "
             "equivalente a las funciones validate_* sobre objetos ya cargados. "
-            "La validez no es autorizacion."
+            "La validez no es autorizacion. --format text (default) conserva "
+            "las cadenas VALID/INVALID; --format json emite un unico objeto "
+            "ASCII-escapado epistates/validation-report/v1 con taxonomia de "
+            "errores cerrada y exits 0/1/2. Todo archivo (artefacto, bindings, "
+            "message-file) pasa por el mismo loader seguro: solo regular, "
+            "lectura acotada y anti-TOCTOU."
         ),
     },
     {
@@ -625,6 +638,11 @@ def validatable_schemas() -> List[str]:
     return list(_SCHEMAS_VALIDATABLE)
 
 
+def output_schemas() -> List[str]:
+    """Schemas que ``epistates`` emite como salida (no son inputs validables)."""
+    return list(_SCHEMAS_OUTPUT)
+
+
 def build_discovery_document() -> Dict[str, Any]:
     """Construye ``epistates/discovery/v1`` estatica, deterministicamente y aislada.
 
@@ -667,6 +685,7 @@ def build_discovery_document() -> Dict[str, Any]:
                     "conocidos desde el paquete instalado."
                 ),
                 "schemas_validatable": list(_SCHEMAS_VALIDATABLE),
+                "schemas_output": list(_SCHEMAS_OUTPUT),
                 "document_schema": DISCOVERY_SCHEMA,
                 "adapter_capabilities": capability_descriptors(),
                 "cli_surface": [dict(e) for e in _CLI_SURFACE],

@@ -703,6 +703,111 @@ JSON profundo, `RecursionError`, claves duplicadas, UTF-8 inválido y cambios
 ambiguos de entrada. Rutas con LF, ANSI o Unicode hostil nunca contaminan salida
 machine-readable. Ninguna respuesta de validación concede autoridad.
 
+**Estado de Slice2: implementado; pendiente de revisión adversarial fresca.**
+No aceptado; no autoriza commit ni release.
+
+DoD ejecutable cubierto por la implementación:
+
+- `validate --format json` emite exactamente un objeto JSON ASCII-escapado,
+  determinista, byte-idéntico entre ejecuciones, invariante ante
+  locale/TZ/`PYTHONIOENCODING=ascii`, con `stderr` vacío y newline final. Schema
+  versionado `epistates/validation-report/v1`.
+- Distingue machine-readable las fases `load`/`contract`/`binding` con `status`
+  cerrado y `error` por fase. Forma+semántica se declaran honestamente como
+  fase `contract` (los validadores actuales no separan estructura de semántica);
+  `binding.status` es `not_requested`/`valid`/`invalid`/`skipped` (cerrado).
+- Todo reporte fija `provenance_verified: false`,
+  `authority_status: "external_unverified"` y `authorized_to_execute: false`,
+  incluso con artifacts que se autodeclaren `authority`.
+- Exits: `0` contrato/binding válido, `1` input/JSON/contrato/binding inválido,
+  `2` uso CLI incorrecto. En modo machine, todo error posterior a reconocer
+  `--format json` emite JSON único y mantiene `stderr` vacío. Límite
+  documentado: un `--format` con valor distinto de `text`/`json` se rechaza por
+  argparse antes de reconocer el modo machine (error a stderr, exit 2).
+- El modo textual conserva las cadenas `VALID`/`INVALID` y su comportamiento.
+- Taxonomía cerrada y estable de `error.code` publicada en
+  `epistates.__main__.error_taxonomy()` y en
+  [`agent-integration.md`](agent-integration.md): `cli_usage_error`,
+  `file_not_found`, `open_failed`, `read_failed`, `file_is_symlink`,
+  `file_not_regular`, `file_too_large`, `file_changed_during_read`,
+  `invalid_utf8`, `invalid_json`, `duplicate_json_key`,
+  `json_unsupported_constant`, `json_too_deep`, `recursion_error`,
+  `schema_missing`, `schema_unsupported`, `contract_violation`,
+  `binding_missing`, `binding_invalid`, `internal_error`.
+
+Input hardening (compartido por artefacto, bindings y `message-file`):
+
+- `lstat` pre-check rechaza symlink y todo no-regular (dir/FIFO/socket/device)
+  antes de abrir; `O_NOFOLLOW` + `O_NONBLOCK` evitan seguir symlinks y bloquear
+  en FIFO/socket; `fstat` del descriptor real valida anti-TOCTOU `lstat -> open`.
+- Límite explícito por archivo: lectura `limit + 1` (`lstat`/`stat` es sólo
+  fast-path). El mensaje literal conserva su límite específico.
+- Detección de cambio ambiguo durante la lectura: se comparan `st_dev`,
+  `st_ino`, `st_size`, `st_mtime_ns`, `st_ctime_ns` antes/después; falla cerrado
+  con `file_changed_during_read`.
+- UTF-8 estricto, claves duplicadas (anidadas o no), `NaN`/`Infinity`,
+  trailing data, JSON muy profundo y `RecursionError` rechazados sin traceback.
+- Profundidad máxima explícita (`_MAX_JSON_DEPTH = 100`) impuesta post-parse.
+- Errores `OSError`/`Unicode`/`JSON`/`Recursion` nunca filtran traceback.
+- Rutas, argv y mensajes con C0/DEL/C1/ANSI/Unicode hostil no inyectan terminal
+  ni rompen el JSON: la salida machine es `ensure_ascii` y estructurada.
+- Sin subprocess, sockets de red, reloj, locale ni probing del host durante
+  `validate --format json`. El filesystem autorizado es la única I/O.
+
+Discovery y docs:
+
+- `epistates/discovery/v1` declara `schemas_output` con
+  `epistates/discovery/v1` y `epistates/validation-report/v1`; la entrada CLI de
+  `validate` describe `--format text|json`, la salida machine y el loader
+  seguro. La guía `agent-integration.md` documenta formato, exits, taxonomía y
+  la frontera de autoridad.
+- Se conserva `descrito != implementado != observado != autorizado`: aceptar
+  este corte no libera el gate final de H4 ni autoriza publicación.
+
+Las pruebas focales en `tests/test_machine_validation.py` y la suite completa
+cubren:
+
+- Reportes JSON válidos e inválidos, byte-identical entre dos ejecuciones,
+  estables ante locale/TZ/ASCII; stdout un único JSON y `stderr` vacío.
+- Exits `0`/`1`/`2`; formato desconocido (`yaml`) a stderr exit 2; flag
+  desconocido y artifact ausente en modo machine emiten JSON exit 2.
+- `limit-1`, `limit`, `limit+1` y mentira de `st_size`; lectura acotada.
+- Directorio, FIFO, socket UNIX, char device (`/dev/null`), symlink y path
+  ausente: todos rechazados sin bloquear con código estable.
+- Cambio de `inode`/`size`/`mtime`/`ctime` durante lectura (mock determinista).
+- UTF-8 inválido, claves duplicadas anidadas, `NaN`/`Infinity`/`-Infinity`,
+  trailing data, JSON muy profundo y `RecursionError` simulado.
+- Path con LF/ESC/U+0085/U+009B y nombre no ASCII: sanitizeados y ASCII-safe.
+- Todos los archivos auxiliares de binding pasan por el mismo loader seguro.
+- Subprocess/socket/urllib/`get_terminal_size` bloqueados durante
+  `validate --format json`; introspección AST del módulo y proceso real.
+- Reportes siempre `authority_status=external_unverified`,
+  `provenance_verified=false`, `authorized_to_execute=false`, incluso con
+  audit-result en modo puente aceptado.
+- Paridad parser↔discovery↔docs y no regresión de las 634 pruebas existentes.
+
+Estado de Slice2: **aceptado** tras dos rondas de corrección y una revisión
+adversarial fresca C2 con decisión `PROCEED`. Se corrigieron la clasificación
+específica `invalid_utf8` para `message-file` y la equivalencia entre el
+pre-scan de formato y la semántica last-wins de argparse, incluidas apariciones
+duplicadas e incompletas. La suite aceptada contiene 84 pruebas focales; H4
+completo y el release permanecen abiertos.
+
+Riesgos residuales reservados a Slice3/gate (no tratados como hechos):
+
+- La separación `contract` forma+semántica es honesta: los validadores
+  actuales no separan estructura de semántica, así que el reporte no afirma
+  separación que no pueda demostrar.
+- `lstat` pre-check rechaza por tipo antes de abrir; el `fstat` del descriptor
+  sigue siendo la verificación autoritativa anti-TOCTOU. Una carrera
+  `lstat -> open -> fstat` con metadata idéntica no se detecta (límite
+  inherente al modelo de archivos regulares).
+- El modo machine sólo se reconoce tras pre-scan de `--format json`; valores
+  inválidos de `--format` se rechazan por argparse antes del modo y van a
+  stderr (exit 2). Está documentado como límite inevitable.
+- Slice2 no publica schemas empaquetados, CLI `schema list/show`, ni onboarding
+  de agentes: quedan para Slice3.
+
 ### H4 — Slice3: contratos y onboarding instalables
 
 **Objetivo.** Distribuir contratos y ejemplos seguros sin crear dos fuentes
