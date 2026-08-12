@@ -1,8 +1,11 @@
 # Plan inicial — E1 contratos y conformidad
 
 **Estado:** H1, H2 y H3 cerrados; Slice1–Slice5 aceptados tras rondas
-adversariales independientes. El siguiente gate es preparar la primera release
-experimental.
+adversariales independientes. **Candidata de release `0.1.0a1` aceptada por el
+gate adversarial (2026-08-11): build reproducible, wheel, metadata, instalación
+y CLI verificados; pendiente de commit, integración, tag y autorización de
+publicación; no publicada.** El gate documental está en
+[`release-gate.md`](release-gate.md).
 **Fecha:** 2026-08-11. **Fuente:** definición fundacional y protocolo técnico
 del piloto.
 

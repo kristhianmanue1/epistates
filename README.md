@@ -1,25 +1,85 @@
 # Epistates
 
-**Estado:** desarrollo E1 · **Madurez:** experimental · **Implementación:** iniciada
+**Estado:** hitos H1–H3 cerrados · **Madurez:** experimental · **Candidata:**
+`0.1.0a1` (gate local aceptado; no publicada)
+**Versión del paquete (PEP 440):** `0.1.0a1` · **Tag humano candidato:**
+`v0.1.0-alpha.1` (no publicado; pendiente de autorización del mantenedor).
 
-> Actualización 2026-08-11: E1 (contratos y conformidad read-only) inició. La
-> implementación de adaptadores, worktrees y sesiones externas sigue pendiente.
+> Actualización 2026-08-11: los hitos H1 (contrato `task-card/v1` y validador
+> read-only), H2 (resultado de auditoría y máquina de estados) y H3 (adaptador
+> `opencode-tmux/v1` con los sub-cortes Slice1–Slice5) están cerrados tras
+> rondas adversariales independientes. La integración Git, el tag y la
+> publicación quedan pendientes de autorización del mantenedor.
+
+> **Software experimental.** Epistates es un alpha sin garantías: la API, los
+> contratos y el CLI pueden cambiar sin previo aviso. **No existe versión
+> publicada** hasta que el mantenedor lo autorice; `0.1.0a1` es una candidata
+> local aceptada por el gate adversarial, todavía sin tag ni publicación.
+
+## Instalación
+
+Epistates no está publicado en PyPI. Para evaluar la candidata `0.1.0a1`,
+construye el wheel de forma reproducible y instálalo en un venv limpio. El
+paquete **no tiene dependencias de ejecución** y se construye sin aislamiento
+ni red:
+
+```bash
+# desde la raíz del repositorio, con un Python >=3.9
+# SOURCE_DATE_EPOCH fija los timestamps del wheel al del commit base, haciendo
+# el build reproducible (mismo nombre, tamaño, contenido y SHA-256).
+SOURCE_DATE_EPOCH=1786501546 python -m pip wheel --no-deps --no-build-isolation . -w /tmp/epistates-dist
+python -m venv /tmp/epistates-smoke
+/tmp/epistates-smoke/bin/python -m pip install --no-deps /tmp/epistates-dist/epistates-0.1.0a1-py3-none-any.whl
+```
+
+El wheel contiene el paquete Python (`epistates/**/*.py`) y la metadata
+`dist-info` (incluida la licencia Apache-2.0). **No** incluye los directorios
+del repositorio `schemas/`, `fixtures/`, `docs/` ni `tests/`: son activos del
+repositorio, no API distribuida. Los validadores son Python puro y no leen los
+`.schema.json` en runtime.
+
+## Quickstart CLI
+
+El CLI es read-only: valida un artefacto sin resolver checks ni iniciar
+procesos externos. Desde un venv donde el wheel esté instalado:
+
+```bash
+# validar una tarjeta (artefacto minimal, no requiere fixtures del repo)
+epistates validate path/to/task-card.json
+
+# equivalente vía módulo
+python -m epistates validate path/to/task-card.json
+```
+
+Para desarrollo local sin instalar (liga las fuentes del checkout):
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
+PYTHONPATH=src python -m epistates validate fixtures/task-card-valid.json
+```
+
+El validador sólo inspecciona JSON: los `check_id` son identificadores de un
+catálogo confiable, no comandos declarados por la tarjeta, y el validador nunca
+inicia un adaptador.
+
+## Compatibilidad de plataforma
+
+- **Validación pura de contratos** (`task-card/v1`, `audit-result/v1`,
+  prefiltro, recibos y binding): Python puro, ejecutable donde Python >=3.9 lo
+  soporte. Esta candidata se ha ejercitado en macOS; otras plataformas no se
+  prometen mientras no se prueben explícitamente.
+- **Adaptador `opencode-tmux/v1`** (observación, entrega literal, captura):
+  requiere macOS o Linux porque depende de `tmux`. **Windows no está soportado**
+  en este corte y no se promete compatibilidad simulada.
 
 ## Desarrollo local
 
 El runtime inicial es Python sin dependencias de ejecución. AN-KLA Memory se
 usa como continuidad local y Escrubery como referencia del proceso ADRC; ninguno
-concede permisos operativos por sí mismo.
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
-.venv/bin/python -m epistates validate fixtures/task-card-valid.json
-```
-
-El validador sólo inspecciona JSON: los checks son identificadores de un
-catálogo confiable, no comandos declarados por la tarjeta, y el validador nunca
-inicia un adaptador. El plan de E1 está en
-[`docs/plan-inicial.md`](docs/plan-inicial.md).
+concede permisos operativos por sí mismo. Los comandos de desarrollo y CLI se
+documentan arriba en [Instalación](#instalación) y [Quickstart CLI](#quickstart-cli).
+El plan de E1 está en [`docs/plan-inicial.md`](docs/plan-inicial.md); el gate
+documental de release en [`docs/release-gate.md`](docs/release-gate.md).
 
 Epistates es un supervisor contractual de agentes externos. Su propósito es
 permitir que un mantenedor delegue trabajo de desarrollo, QA, documentación u

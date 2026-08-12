@@ -1,5 +1,7 @@
 """Contratos locales para la supervision gobernada de agentes externos."""
 
+from ._version import __version__
+
 from .adapter import validate_adapter_capabilities
 from .audit import canonical_digest, validate_audit_binding, validate_audit_result
 from .audit_review import (
@@ -61,7 +63,7 @@ __all__ = [
     "PreflightError", "PreflightResult", "ProductionHostRunner",
     "ReviewError", "ReviewRunner", "ReviewRunnerError",
     "TmuxLiteralDispatcher", "TmuxReviewRunner", "TransitionError",
-    "ValidationError", "apply_audit", "apply_audit_from_review",
+    "ValidationError", "__version__", "apply_audit", "apply_audit_from_review",
     "canonical_digest", "dispatch_literal_opencode_tmux",
     "evaluate_preflight", "observe_opencode_tmux", "review_opencode_tmux",
     "transition", "validate_adapter_capabilities", "validate_audit_binding",
