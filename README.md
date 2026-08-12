@@ -27,16 +27,25 @@ ni red:
 # desde la raíz del repositorio, con un Python >=3.9
 # SOURCE_DATE_EPOCH fija los timestamps del wheel al del commit base, haciendo
 # el build reproducible (mismo nombre, tamaño, contenido y SHA-256).
-SOURCE_DATE_EPOCH=1786501546 python -m pip wheel --no-deps --no-build-isolation . -w /tmp/epistates-dist
+SOURCE_DATE_EPOCH=1786546459 python -m pip wheel --no-deps --no-build-isolation . -w /tmp/epistates-dist
 python -m venv /tmp/epistates-smoke
 /tmp/epistates-smoke/bin/python -m pip install --no-deps /tmp/epistates-dist/epistates-0.1.0a1-py3-none-any.whl
 ```
 
-El wheel contiene el paquete Python (`epistates/**/*.py`) y la metadata
-`dist-info` (incluida la licencia Apache-2.0). **No** incluye los directorios
-del repositorio `schemas/`, `fixtures/`, `docs/` ni `tests/`: son activos del
-repositorio, no API distribuida. Los validadores son Python puro y no leen los
-`.schema.json` en runtime.
+El wheel contiene el paquete Python (`epistates/**/*.py`), la metadata
+`dist-info` (incluida la licencia Apache-2.0) y, desde H4 Slice3, los
+**schemas canónicos** y los **recursos de onboarding** como package-data:
+
+- `epistates/data/schemas/*.schema.json` — los siete schemas canónicos
+  (fuente única, leídos vía `importlib.resources` con `epistates.schemas`);
+- `epistates/data/onboarding/agent-guide.md` y
+  `epistates/data/onboarding/minimal-task-card.json` — guía para agentes y
+  artefacto mínimo de ejemplo (ninguno es instrucción ni grant).
+
+El wheel **no** incluye los directorios del repositorio `fixtures/`, `docs/`
+ni `tests/`: son activos del repositorio, no API distribuida. Los validadores
+son Python puro y no leen los `.schema.json` en runtime para validar; los
+schemas empaquetados son descriptores `structural_only` con digest exacto.
 
 ## Quickstart CLI
 
@@ -94,6 +103,31 @@ PYTHONPATH=src python -m epistates validate fixtures/task-card-valid.json
 `describe --format json` emite la superficie instalada con la taxonomía de
 efectos, la frontera de confianza y los requisitos de runtime. La guía para
 agentes está en [`docs/agent-integration.md`](docs/agent-integration.md).
+
+Desde H4 Slice3 el paquete distribuye además los **schemas canónicos** y el
+**onboarding de agentes** como package-data, accesibles sin checkout:
+
+```bash
+# catalogo cerrado de los siete schemas empaquetados, con digests exactos
+epistates schema list --format json
+
+# schema solicitado + descriptor (digest, alcance y validador normativo)
+epistates schema show epistates/task-card/v1 --format json
+```
+
+Ambos son estáticos/offline: leen recursos del paquete vía `importlib.resources`,
+sin subprocess, socket, reloj, Git, `tmux` ni red; ningún `$id` se abre. Exit
+`0` en éxito, `1` si el id es desconocido, `2` en uso CLI incorrecto. Mostrar un
+schema **no** concede autoridad ni ejecutabilidad.
+
+```python
+from epistates import schemas, onboarding
+schemas.schema_ids()                          # siete ids estables
+schemas.schema_descriptor("epistates/task-card/v1")  # metadata + sha256
+schemas.verify_schema_integrity()             # recomputa todos los digests
+onboarding.onboarding_inventory()             # guia, artefacto minimo, walkthrough
+onboarding.run_walkthrough()                  # demo conceptual in-memory, determinista
+```
 
 El validador sólo inspecciona JSON: los `check_id` son identificadores de un
 catálogo confiable, no comandos declarados por la tarjeta, y el validador nunca

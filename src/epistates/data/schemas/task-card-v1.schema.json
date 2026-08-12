@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/task-card-v1.schema.json",
   "title": "Epistates task card v1",
+  "description": "Structural descriptor for epistates/task-card/v1. validation_scope: structural_only. The normative validator is the Python function epistates.contracts.validate_task_card; this JSON Schema only expresses a subset of the contract. $id is an opaque identifier, never a URL to download or fetch at runtime.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "task_id", "objective", "target", "role", "authority", "allowed_paths", "allowed_actions", "forbidden_operations", "inputs", "checks", "evidence", "delivery", "stop_condition", "new_decision_required_for"],

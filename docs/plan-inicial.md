@@ -581,8 +581,12 @@ Git y preparación de release requieren autoridad separada.
 ## H4 — Agent-safe discovery and misuse resistance
 
 **Estado:** requerido antes de publicar Epistates como herramienta destinada a
-agentes de IA. La candidata local `0.1.0a1` permanece en `NO-GO` para ese claim
-hasta cerrar H4 y repetir el gate de release. H1–H3 no se reabren.
+agentes de IA. Slice1–Slice3 aceptados; **H4 cerrado localmente (2026-08-12)**
+tras gate reproducible y revisión adversarial final C1 con decisión `PROCEED` y
+cero hallazgos P0/P1/P2. La candidata local `0.1.0a1` sigue **SIN PUBLICAR**:
+commit autorizado por separado; integración, tag y publicación conservan
+autoridad separada del mantenedor.
+H1–H3 no se reabren.
 
 H4 no amplía autoridad ni añade automatización operativa. Su objetivo es que un
 agente pueda descubrir la superficie instalada sin confundir propiedades que
@@ -822,6 +826,104 @@ artefacto mínimo y un walkthrough con runners falsos; ejemplos, docs y schemas
 declaran que no son instrucciones ni grants y se prueban con subprocess/socket
 bloqueados.
 
+**Estado de Slice3: aceptado** tras la corrección C1 y una revisión adversarial
+fresca con decisión `proceed` y cero hallazgos P0/P1/P2 (2026-08-12; véase
+[`adversarial-h4-slice3.md`](adversarial-h4-slice3.md)). No autoriza commit ni
+release; el cierre global de H4 se documenta en
+[`adversarial-h4-gate.md`](adversarial-h4-gate.md).
+
+Corrección C1 (cuatro hallazgos, corregidos sin ampliar alcance):
+
+1. `read_minimal_task_card()` ahora verifica digest → UTF-8 estricto → JSON
+   estricto → `validate_task_card` → devuelve copia fresca ya validada.
+2. `agent_guide_digest`/`minimal_task_card_digest` verifican bytes contra digests
+   SHA-256 **congelados** antes de devolver contenido; fail-closed ante recurso
+   ausente/ilegible, digest divergente, UTF-8 inválido y (para JSON) claves
+   duplicadas, NaN/Infinity, raíz no objeto y tarjeta semánticamente inválida.
+   Excepción pública `OnboardingResourceError` con mensajes saneados.
+3. Typo «Viger authority» corregido a «Current authority» en `agent-guide.md`.
+4. Índice Git: `git reset HEAD -- schemas/` deshizo el staging de las siete
+   eliminaciones (reversible); `git diff --cached` vacío, eliminaciones sin stage.
+
+DoD ejecutable cubierto por la implementación:
+
+- **Fuente canónica única.** Los siete schemas canónicos se movieron al paquete
+  (`src/epistates/data/schemas/*.schema.json`, ASCII puro); el directorio
+  `schemas/` del repo se eliminó. Una sola fuente normativa: el módulo
+  `epistates.schemas`. Los accessores leen vía `importlib.resources` sin checkout
+  ni cwd del host.
+- **Catálogo cerrado, inmutable, fail-closed.** Cada descriptor declara `schema_id`
+  estable, `resource_name`, `sha256` exacto, `validation_scope: structural_only`,
+  validador Python normativo, `required_external_bindings`, `binding_behavior`,
+  `library_authenticates_authority: false`, `authorized_to_execute: false`,
+  `provenance_verified: false`, `authority_status: "external_unverified"`. Los
+  accessors devuelven copias/bytes frescos; mutarlos no contamina. Cada lectura
+  recomputa `sha256` y falla cerrado ante recurso ausente, digest divergente,
+  JSON inválido, claves duplicadas, no-ASCII e id desconocido. El `schema_id`
+  nunca se usa como path: se consulta por igualdad exacta en un catálogo cerrado.
+  `../`, path absoluto, `%2e%2e`, Unicode confusables y Cc se rechazan.
+- **`$id` es identificador opaco, nunca fetched.** Ningún accessor abre,
+  resuelve o descarga el `$id`. `json_schema_id_never_fetched: true`.
+- **Auditoría schema↔Python honesta.** Cada descriptor declara
+  `structural_only` y nombra el validador Python normativo. Los gaps semánticos
+  que JSON Schema no expresa (digests, binding de cadena, frescura, anti-TOCTOU,
+  autoridad) se documentan; no se declara equivalencia semántica completa.
+- **CLI `schema list/show`.** `epistates schema list --format json` emite
+  `epistates/schema-catalog/v1`; `epistates schema show <id> --format json` emite
+  `epistates/schema-show/v1`. Ambos estáticos/offline: stdout un único JSON
+  ASCII determinista con newline, stderr vacío, exit `0` en éxito, exit `1` para
+  id desconocido (documentado) y exit `2` para uso CLI incorrecto. Integrados en
+  `--help` y `describe --format json` (nuevas entradas de `cli_surface` y nuevos
+  schemas de salida). Sin subprocess, socket, reloj, Git, `tmux` ni red; sin
+  `get_terminal_size`.
+- **Onboarding instalable.** El wheel incluye una guía para agentes
+  (`data/onboarding/agent-guide.md`), un artefacto mínimo válido
+  (`data/onboarding/minimal-task-card.json`, pasa `validate_task_card`) y un
+  walkthrough ejecutable (`epistates.onboarding.run_walkthrough`) con runners en
+  memoria. Ninguno es instrucción ni grant; cada recurso lo declara en sí mismo.
+  El walkthrough es determinista y puro: sin subprocess/socket/reloj/Git/`tmux`/red,
+  sin escribir fuera de un `writer` opcional inyectado, y sin consumir fixtures
+  del checkout. No se añadió un CLI extra para el walkthrough.
+- **Empaquetado.** `[tool.setuptools.package-data]` declara explícitamente
+  `data/schemas/*.schema.json` y `data/onboarding/*`. El wheel construido incluye
+  los siete schemas, la guía y el artefacto mínimo (verificado por inspección del
+  `.whl`); el módulo `onboarding.py` se incluye como código. El smoke desde un
+  venv aislado en `/tmp` (sin `PYTHONPATH`) confirma `schema count == 7`,
+  integridad de digests, minimal-card válido y walkthrough determinista desde el
+  paquete instalado.
+- **Seguridad y autoridad.** Subprocess/socket/`get_terminal_size`/reloj
+  bloqueados durante `schema list/show`, acceso a recursos y walkthrough (tests
+  con `patch` y proceso real). Ataques de id (`../`, absolutos, `%2e%2e`,
+  Unicode/confusables, Cc) fallan cerrados. `task-card.authority`, capability
+  declarada, schema válido, ejemplo o guía nunca cambian
+  `provenance_verified: false`, `authority_status: "external_unverified"` ni
+  `authorized_to_execute: false`.
+- **Paridad parser↔discovery↔README↔guía↔package-data.** `schema_ids()` ==
+  `_VALIDATORS.keys()` == discovery `schemas_validatable`; los bindings
+  requeridos del descriptor == `_APPLICABLE`; el inventario y catálogo de
+  discovery == accessores. README y guía documentan `schema list/show` y el
+  onboarding de forma coherente con `describe --format json`.
+
+Pruebas focales: `tests/test_schemas.py` (46) y `tests/test_onboarding.py` (29).
+Suite completa: 793 pruebas en verde (718 previas + 75 focales nuevas). Sin
+regresión. `git diff --check` limpio.
+
+Riesgos residuales tras el gate de cierre H4 (verificados o fuera de alcance):
+
+- **`SOURCE_DATE_EPOCH` y reproducibilidad byte-a-byte de dos wheels**: VERIFICADO
+  por el gate (dos copias fuente independientes bajo `/private/tmp`,
+  `SOURCE_DATE_EPOCH=1786546459`, dos wheels byte-idénticos; véase
+  `release-gate.md`).
+- **Instalación en venv limpio con entorno neutralizado**: VERIFICADO por el gate
+  (`env -u PYTHONPATH`, `--no-deps --force-reinstall`, import resuelto a
+  `site-packages` del venv desde cwd vacío fuera del repo).
+- Los schemas empaquetados son `structural_only`; la conformidad semántica
+  completa con un validador JSON Schema externo (p. ej. `jsonschema`) no se
+  prueba y queda fuera de alcance.
+- **Revisión adversarial fresca DEL GATE**: VERIFICADA tras corrección C1, con
+  decisión `PROCEED` y cero hallazgos P0/P1/P2; no autoriza por sí sola
+  integración, tag ni publicación.
+
 ### Gate de cierre H4
 
 El gate construye dos wheels idénticos, instala uno en un venv limpio y prueba
@@ -832,6 +934,13 @@ recursos y suite completa. Incluye ataques de autoridad autodeclarada,
 inflación de capacidades, archivo enorme/FIFO/JSON profundo, terminal injection,
 version skew y divergencia schema↔validador. Una revisión adversarial fresca es
 obligatoria antes de volver a decidir el release.
+
+**Resultado (2026-08-12, HEAD `128945f`): gate H4 local PASS.** Ejecutado por el
+ejecutor en este worktree; evidencia exacta (comandos, hashes, inventario, smoke
+y estado RAG) en [`release-gate.md`](release-gate.md) — sección «Resultado del
+gate de cierre H4». La revisión adversarial final C1 terminó `PROCEED` con cero
+P0/P1/P2 (véase [`adversarial-h4-gate.md`](adversarial-h4-gate.md)). H4 queda
+cerrado localmente; integración, tag y publicación conservan autoridad separada.
 
 
 ### Reproducibilidad del DoD

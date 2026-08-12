@@ -1,8 +1,9 @@
 # Release Gate — Epistates
 
 **Corte:** `0.1.0a1` (PEP 440) · **Tag humano candidato:** `v0.1.0-alpha.1`
-· **Fecha de candidata:** 2026-08-11 · **Estado:** gate adversarial local
-aceptado; pendiente de commit, integración y autorización del mantenedor.
+· **Fecha de candidata:** 2026-08-11 · **Estado actual:** gate de cierre H4
+local `PASS` y revisión adversarial final C1 `PROCEED` (2026-08-12); commit
+autorizado por separado, con integración y tag/publicación aún pendientes.
 **No publicada.**
 
 Este documento define el gate documental y ejecutable para una candidata de
@@ -49,9 +50,9 @@ autoridad explícita del mantenedor.
 
 ### 4. Construcción reproducible sin red
 
-- [ ] Comando determinista (fija timestamps al commit base `5f8d58b`,
-      timestamp Unix `1786501546`):
-      `SOURCE_DATE_EPOCH=1786501546 <venv>/bin/python -m pip wheel --no-deps --no-build-isolation . -w /private/tmp/epistates-release-gate-repro1`
+- [ ] Comando determinista (fija timestamps al commit base H4 `128945f`,
+      timestamp Unix `1786546459`):
+      `SOURCE_DATE_EPOCH=1786546459 <venv>/bin/python -m pip wheel --no-deps --no-build-isolation . -w /private/tmp/epistates-release-gate-repro1`
       y de forma análoga con `...-repro2`.
 - [ ] Ambos builds producen idéntico **nombre**, **tamaño**, **contenido**
       (bytes a bytes del `.whl`) y **SHA-256**. Un único build **no** atestigua
@@ -60,19 +61,26 @@ autoridad explícita del mantenedor.
 
 ### 5. Inspección del wheel
 
-- [ ] El wheel contiene el paquete Python `epistates/**/*.py` con **15 módulos**:
+- [ ] El wheel contiene el paquete Python `epistates/**/*.py` con **19 módulos**:
       `__init__`, `__main__`, `_version`, `adapter`, `audit`, `audit_review`,
-      `contracts`, `dispatch`, `host_observer`, `host_runner`, `human_notice`,
-      `preflight`, `review`, `review_runner`, `state`. Estos corresponden 1:1
-      con el árbol `src/epistates/` (14 módulos originales + `_version`).
-- [ ] `audit_review` y `review` **deben** estar incluidos: son módulos ya
-      cerrados y auditados en H3 (Slice5 y Slice4 respectivamente), no módulos
-      nuevos. El adversarial mínimo exige que el wheel no introduzca módulos no
-      auditados; aquí no introduce ninguno.
+      `capabilities`, `contracts`, `discovery`, `dispatch`, `host_observer`,
+      `host_runner`, `human_notice`, `onboarding`, `preflight`, `review`,
+      `review_runner`, `schemas`, `state`. Corresponden 1:1 con el árbol
+      `src/epistates/`. (`discovery` y `capabilities` provienen de H4 Slice1;
+      `schemas` y `onboarding` de H4 Slice3. `audit_review` y `review` son
+      módulos cerrados en H3, no nuevos.)
+- [ ] El wheel incluye **9 package-data**: los **7 schemas canónicos**
+      (`epistates/data/schemas/*.schema.json`, fuente única desde H4 Slice3),
+      la **guía para agentes** (`epistates/data/onboarding/agent-guide.md`) y la
+      **tarjeta mínima** (`epistates/data/onboarding/minimal-task-card.json`).
+      Se leen vía `importlib.resources`; los validadores Python no los leen en
+      runtime para validar.
+- [ ] El repositorio `schemas/` **ya no se distribuye** como directorio externo:
+      la fuente canónica está dentro de `epistates/data/schemas/`. El wheel
+      **no** incluye `fixtures/`, `docs/` ni `tests/`: son activos del
+      repositorio, no API distribuida.
 - [ ] El wheel incluye la metadata `dist-info`, **incluida la licencia**
       (`epistates-0.1.0a1.dist-info/licenses/LICENSE`).
-- [ ] **No** incluye los directorios del repositorio `schemas/`, `fixtures/`,
-      `docs/` ni `tests/`: son activos del repositorio, no API distribuida.
 - [ ] `METADATA` del wheel muestra `Version: 0.1.0a1`, `License-Expression:
       Apache-2.0`, `Requires-Python: >=3.9`, `Requires-Dist:` ausente, sin
       classifiers de versiones de Python no probadas (sólo `3` y `3.9`) y las
@@ -101,6 +109,18 @@ Ejecutado con `cwd` **fuera** del repo (p. ej. `/private/tmp`), sin
       probando la ruta importada desde el wheel (no desde el checkout).
 - [ ] Un artefacto inválido (p. ej. schema desconocido) termina con exit distinto
       de 0.
+- [ ] `python -m epistates describe --format json` emite un único JSON
+      determinista con `stderr` vacío; byte-idéntico entre dos ejecuciones y
+      estable ante locale/TZ.
+- [ ] `python -m epistates schema list --format json` y
+      `schema show <id> --format json` terminan exit `0`; id desconocido exit
+      `1`; uso CLI inválido exit `2`.
+- [ ] `python -c "from epistates import schemas; ..."` expone `schema_count()==7`,
+      `verify_schema_integrity()` sin error y digests recomputados coincidentes.
+- [ ] `python -c "from epistates import onboarding; ..."` expone guía, tarjeta
+      mínima validada internamente y walkthrough determinista.
+- [ ] Autoridad autodeclarada: `validate --format json` y `schema show` nunca
+      producen `provenance_verified`/`authorized_to_execute` `true`.
 
 ### 8. Reporte
 
@@ -118,6 +138,13 @@ Ejecutado con `cwd` **fuera** del repo (p. ej. `/private/tmp`), sin
 - Auditoría adversarial fresca sobre este corte antes de cualquier publicación.
 
 ## Resultado del gate — corrección C1 (2026-08-11, candidata `0.1.0a1`)
+
+> **Sección histórica (evidencia anterior).** Este bloque documenta el gate
+> local de la candidata `0.1.0a1` cerrado el **2026-08-11** ANTES de H4 (cuando el
+> wheel tenía 15 módulos `.py` y los schemas vivían en el repositorio
+> `schemas/`). **No** es el resultado del gate de cierre H4; éste último se
+> documenta más abajo en «Resultado del gate de cierre H4». Se conserva como
+> evidencia de la línea base de reproducibilidad pre-H4.
 
 Ejecutado por el ejecutor en el worktree
 `/private/tmp/epistates-release-alpha1` sobre la base
@@ -252,3 +279,129 @@ smoke verificó además `importlib.metadata.version("epistates") == "0.1.0a1"` y
   afirman en los classifiers.
 - **Sin tag/push/release.** Tag `v0.1.0-alpha.1`, push y GitHub Release quedan
   pendientes de autorización del mantenedor y de auditoría adversarial fresca.
+
+## Resultado del gate de cierre H4
+
+**Fecha:** 2026-08-12. **HEAD:** `128945fae0db9c9134cc55bef0411510f954484c`
+(rama `codex/h4-installable-contracts`). **SOURCE_DATE_EPOCH:** `1786546459`
+(obtenido con `git show -s --format=%ct HEAD`). **Estado RAG: gate H4 local
+PASS.** La candidata `0.1.0a1` sigue **SIN PUBLICAR**.
+
+Ejecutado por el ejecutor en el worktree
+`/private/tmp/epistates-h4-installable-contracts`. Builds y venv en copias
+independientes bajo `/private/tmp` (`epistates-h4-src-A/B`, `epistates-h4-wheel-A/B`,
+`epistates-h4-venv`, `epistates-h4-smoke-empty`) para no crear `build/` ni
+`*.egg-info` en el worktree. Sin red, sin dependencias (`--no-deps
+--no-build-isolation`).
+
+### Comandos a resultado
+
+| Paso | Comando | Resultado |
+|---|---|---|
+| Estado | `git status` / `git diff --check` / `git diff --cached` | nada staged; `diff --check` exit 0; `diff --cached` vacío |
+| Suite | `PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'` | exit 0, **793 OK (1 skipped)** — skip pre-existente tmux |
+| Versión | `python -c "import epistates; epistates.__version__"` / `importlib.metadata.version` | `0.1.0a1` (single-source `_version.py`, `dynamic=[version]` vía `attr`) |
+| Build reproducible (×2) | `SOURCE_DATE_EPOCH=1786546459 python3 -m pip wheel --no-deps --no-build-isolation <src-A/B> -w <wheel-A/B>` | dos wheels byte-idénticos |
+| Venv + install | `python3 -m venv …/epistates-h4-venv` → `env -u PYTHONPATH …/python -m pip install --no-deps --force-reinstall <whl>` | `Successfully installed epistates-0.1.0a1` |
+| Smoke | `env -u PYTHONPATH …/python smoke.py` desde cwd vacío fuera del repo | `ALL_SMOKE_OK` |
+
+### Reproducibilidad (dos builds comparados)
+
+| Build | Nombre | Tamaño | SHA-256 |
+|---|---|---|---|
+| copia A | `epistates-0.1.0a1-py3-none-any.whl` | 108527 | `921c36ea5d399caa163a7394a1ae6281c28022739b07a8ce34bf929c783aecfe` |
+| copia B | `epistates-0.1.0a1-py3-none-any.whl` | 108527 | `921c36ea5d399caa163a7394a1ae6281c28022739b07a8ce34bf929c783aecfe` |
+
+Comparación: `same_name=True`, `same_size=True`, `same_sha256=True`,
+`cmp` byte-idéntico (exit 0).
+
+> **Recertificación C1 del gate (2026-08-12).** La primera ronda adversarial
+> del gate encontró que el README distribuido aún mostraba el
+> `SOURCE_DATE_EPOCH=1786501546` pre-H4. Se corrigieron el README y la plantilla
+> vigente de este documento a `1786546459`, se reconstruyeron dos copias fuente
+> nuevas e independientes y se obtuvo el hash reproducible de la tabla. El hash
+> anterior `8a88466f…d00ab11` (108525 bytes) queda superado; la diferencia
+> corresponde a la corrección documental incorporada en `METADATA`, no a código
+> runtime.
+
+### Inventario del wheel (34 entradas)
+
+- **19 módulos `.py`**: `__init__`, `__main__`, `_version`, `adapter`, `audit`,
+  `audit_review`, `capabilities`, `contracts`, `discovery`, `dispatch`,
+  `host_observer`, `host_runner`, `human_notice`, `onboarding`, `preflight`,
+  `review`, `review_runner`, `schemas`, `state`.
+- **9 package-data**: 7 schemas (`epistates/data/schemas/*.schema.json`, fuente
+  canónica), guía (`epistates/data/onboarding/agent-guide.md`) y tarjeta mínima
+  (`epistates/data/onboarding/minimal-task-card.json`).
+- `dist-info` con licencia (`licenses/LICENSE`), `entry_points.txt`
+  (`epistates = epistates.__main__:main`), `top_level.txt` = `epistates`.
+- `METADATA`: `Version: 0.1.0a1`, `License-Expression: Apache-2.0`,
+  `Requires-Python: >=3.9`, **sin `Requires-Dist`**.
+- **Sin** `fixtures/`, `docs/`, `tests/` ni `schemas/` externos en el wheel.
+
+### Ruta importada (probada desde cwd vacío fuera del repo)
+
+`env -u PYTHONPATH …/python -c "import epistates"` resuelve a:
+
+```
+/private/tmp/epistates-h4-venv/lib/python3.9/site-packages/epistates/__init__.py
+```
+
+(venv smoke, no checkout). `importlib.metadata.version('epistates') == '0.1.0a1'
+== epistates.__version__`.
+
+### Smoke instalado (ALL_SMOKE_OK)
+
+- `--version` → `0.1.0a1` exit 0; `python -m epistates --help` y entrypoint
+  `epistates --help` exit 0.
+- `describe --format json`: un único JSON determinista, `stderr` vacío,
+  byte-idéntico entre dos ejecuciones.
+- `schema list --format json` exit 0 (catálogo de 7); `schema show <id>` exit 0;
+  id desconocido exit 1; uso inválido exit 2.
+- `schemas.schema_count() == 7`, `verify_schema_integrity()` OK; digests
+  recomputados coinciden con los congelados.
+- `onboarding.read_agent_guide()` (sin «Viger»), tarjeta mínima validada
+  internamente y devuelta como copia fresca, digests verificados, walkthrough
+  determinista (alcanza `DONE`).
+- `validate` nominal (exit 0 / `VALID`) e inválido (exit 1 / `INVALID`) sobre
+  artefactos temporales escritos fuera del repo; `--format json` con reporte
+  `epistates/validation-report/v1`.
+- Estabilidad ante `LC_ALL`/`TZ`/`PYTHONIOENCODING` (`C/UTC`,
+  `ja_JP.UTF-8/Asia/Tokyo`, `ascii/C/America/Buenos_Aires`): `describe` y
+  `schema list` byte-estables.
+- Autoridad autodeclarada: `validate --format json` (tarjeta con bloque
+  `authority`) y `schema show` nunca producen `provenance_verified` ni
+  `authorized_to_execute` `true` (`external_unverified` / `false`).
+
+### Ausencia de probing (superficies estáticas)
+
+Las superficies estáticas (`--version`, `--help`, `describe`, `schema list/show`,
+`validate --format json`, acceso a recursos y walkthrough) no realizan probing:
+cubierto por `tests/test_discovery.py::NoProbingAndStreamSafetyTests`,
+`tests/test_machine_validation.py::NoProbingTests`, `tests/test_schemas.py::NoProbingTests`
+y `tests/test_onboarding.py::WalkthroughTests` (18 tests, parchean
+`subprocess`/`socket`/`urllib`/`get_terminal_size`/reloj y usan proceso real).
+No se afirma sandbox.
+
+### Riesgos y notas
+
+- **`build_discovery_document()`** lee ahora dos recursos de onboarding vía
+  `importlib.resources` para verificar digests en cada llamada; sigue siendo
+  puro y determinista (sin subprocess/socket/reloj/red).
+- **Schemas `structural_only`**: la conformidad semántica con un validador JSON
+  Schema externo (p. ej. `jsonschema`) no se prueba; queda fuera de alcance.
+- **Plataforma / Python**: smoke y builds en macOS con Python 3.9
+  (CommandLineTools). Linux no probado; Windows declarado no soportado. Versiones
+  de Python > 3.9 no se afirmaron en los classifiers.
+- **Sin tag/push/release**: la revisión adversarial final C1 del gate terminó
+  `PROCEED`; tag `v0.1.0-alpha.1`, push y GitHub Release siguen pendientes de
+  autoridad separada del mantenedor.
+
+### Decisión
+
+**Gate H4 local PASS y adversarial final C1 `PROCEED`.** Reproducibilidad,
+inventario, instalación aislada, smoke y no-probing verificados; cero hallazgos
+P0/P1/P2. Evidencia adversarial en
+[`adversarial-h4-gate.md`](adversarial-h4-gate.md). La candidata `0.1.0a1`
+**no está publicada**: integración, tag y publicación requieren autoridad
+separada del mantenedor.

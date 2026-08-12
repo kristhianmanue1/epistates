@@ -35,3 +35,13 @@ version = {attr = "epistates._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Package data explicit (Slice3): canonical schemas and onboarding resources
+# are distributed inside the wheel and read via importlib.resources. No repo
+# checkout, no schemas//fixtures//docs/ at runtime.
+[tool.setuptools.package-data]
+epistates = [
+    "data/schemas/*.schema.json",
+    "data/onboarding/*.md",
+    "data/onboarding/*.json",
+]

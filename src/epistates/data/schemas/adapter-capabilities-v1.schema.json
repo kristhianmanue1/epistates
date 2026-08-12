@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/adapter-capabilities-v1.schema.json",
   "title": "Epistates adapter capabilities v1",
-  "description": "Declaracion neutral de identidad y capacidades de un adaptador. Declara, no prueba que este implementado.",
+  "description": "Structural descriptor for epistates/adapter-capabilities/v1. validation_scope: structural_only. The normative validator is epistates.adapter.validate_adapter_capabilities; capability ids come from the canonical source epistates.capabilities. Declares identity and capabilities; does not prove they are implemented. $id is an opaque identifier, never a URL to download.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "adapter_id", "version", "platforms", "capabilities"],

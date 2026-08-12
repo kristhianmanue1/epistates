@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/preflight-result-v1.schema.json",
   "title": "Epistates preflight result v1",
-  "description": "Resultado portable de un preflight fail-closed. El binding normativo lo aporta el validador Python y el CLI, no este schema.",
+  "description": "Structural descriptor for epistates/preflight-result/v1. validation_scope: structural_only. The normative validator is epistates.preflight.validate_preflight_result; the normative binding is validate_preflight_binding (not expressed here). $id is an opaque identifier, never a URL to download.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "adapter_id", "observed_at", "outcome", "reasons", "observed"],

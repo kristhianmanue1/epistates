@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/audit-result-v1.schema.json",
   "title": "Epistates audit result v1",
+  "description": "Structural descriptor for epistates/audit-result/v1. validation_scope: structural_only. The normative validator is epistates.audit.validate_audit_result. review_evidence_digest is a PRE-RELEASE EXTENSION (Slice5) bridging audit-result to review-evidence; it is NOT version-compatible: a pre-Slice5 v1 validator rejects this field. The new validator still accepts pure H2 artifacts (without this field). Bidirectionally required with exactly one capture evidence; the Python validator is normative for this restriction. $id is an opaque identifier, never a URL to download.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "authority_binding", "observed_at", "state_before", "classification", "decision", "evidence"],
@@ -24,7 +25,7 @@
     "state_before": {"const": "REVIEWING"},
     "classification": {"enum": ["OK", "PARCIAL", "BLOQ"]},
     "decision": {"enum": ["proceed", "fix-and-retry", "escalate"]},
-    "review_evidence_digest": {"$ref": "#/$defs/digest", "description": "AMPLIACIÓN PRE-RELEASE (Slice5). Liga el audit-result al review-evidence exacto cuando la auditoría se deriva de una inspección. NO es 'version-compatible': un validador v1 anterior a Slice5 rechaza este campo. El validador nuevo acepta artefactos H2 (sin este campo) y artefactos bridge (con él). Bidireccionalmente requerido con exactamente una evidencia 'capture': el validador Python es normativo para esta restricción."},
+    "review_evidence_digest": {"$ref": "#/$defs/digest", "description": "PRE-RELEASE EXTENSION (Slice5). The Python validator is normative for the bidirectional requirement with capture evidence."},
     "evidence": {
       "type": "array", "minItems": 1, "uniqueItems": true,
       "items": {
@@ -43,7 +44,7 @@
     }
   },
   "allOf": [
-    {"comment": "Bridge bidireccionalidad (Slice5): review_evidence_digest presente exige exactamente una evidencia capture, y viceversa. El validador Python es normativo; este allOf expresa la forma portable."},
+    {"comment": "Bridge bidirectionality (Slice5): review_evidence_digest requires exactly one capture evidence and vice versa. The Python validator is normative; this allOf expresses the portable shape."},
     {"if": {"required": ["review_evidence_digest"]}, "then": {"properties": {"evidence": {"contains": {"properties": {"evidence_id": {"const": "capture"}}}, "minContains": 1, "maxContains": 1}}}},
     {"if": {"properties": {"evidence": {"contains": {"properties": {"evidence_id": {"const": "capture"}}}}}}, "then": {"required": ["review_evidence_digest"]}}
   ],

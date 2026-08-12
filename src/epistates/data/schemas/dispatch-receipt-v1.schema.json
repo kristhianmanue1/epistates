@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/dispatch-receipt-v1.schema.json",
   "title": "Epistates dispatch receipt v1",
-  "description": "Recibo portable mínimo de una entrega literal, ligado al preflight exacto. Confirma transporte técnico (tmux aceptó send-keys), no comprensión del agente ni autoridad. No guarda el prompt: sólo digest y longitud UTF-8.",
+  "description": "Structural descriptor for epistates/dispatch-receipt/v1. validation_scope: structural_only. The normative validator is epistates.dispatch.validate_dispatch_receipt; the normative binding is validate_dispatch_receipt_binding (not expressed here). Confirms technical transport (tmux accepted send-keys), not agent comprehension or authority. Does not store the prompt: only digest and UTF-8 length. $id is an opaque identifier, never a URL to download.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "preflight_result_digest", "adapter_id", "session_name", "dispatched_at", "max_preflight_age_seconds", "message_digest", "message_length_utf8", "phases_confirmed", "final_state", "confirms"],

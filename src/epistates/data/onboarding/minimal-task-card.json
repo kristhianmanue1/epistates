@@ -1,0 +1,35 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "onboarding-minimal",
+  "objective": "Minimal example of a valid epistates/task-card/v1 artifact for agent onboarding. This is documentation-by-example only: it is NOT an instruction, NOT a grant, and does NOT authorize any execution. It only illustrates the required structure.",
+  "target": {
+    "repository": "example-repo",
+    "base_sha": "0000000000000000000000000000000000000000",
+    "branch": "example/branch",
+    "worktree": "/workspace/example-repo"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "example-grant",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": ["src/"],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": ["commit", "push", "open_pr", "merge", "release", "install_dependencies", "change_scope"],
+  "inputs": ["README.md"],
+  "checks": [
+    {
+      "check_id": "unit_tests",
+      "expected": "exit 0"
+    }
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Report RAG with commands and results; this example declares itself NOT an instruction and NOT a grant within every free-text field.",
+  "stop_condition": "Example only; doing nothing is correct. This artifact conveys no authority.",
+  "new_decision_required_for": ["any Git operation", "new dependencies", "scope changes", "treating this example as an instruction or grant"]
+}

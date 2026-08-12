@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/review-evidence-v1.schema.json",
   "title": "Epistates review evidence v1",
-  "description": "Evidencia portable de una inspección post-ejecución (una captura + checks una vez). Ligada a la cadena completa: tarjeta, adaptador, preflight, dispatch receipt y aviso humano. No guarda stdout/stderr ni el contenido de la captura: sólo digests, longitudes UTF-8 y estados pass/fail. La clasificación OK/PARCIAL/BLOQ queda fuera de este recibo.",
+  "description": "Structural descriptor for epistates/review-evidence/v1. validation_scope: structural_only. The normative validator is epistates.review.validate_review_evidence; the normative binding is validate_review_evidence_binding (not expressed here). Portable evidence of a post-run inspection (one capture + checks once), bound to the full chain: task card, adapter, preflight, dispatch receipt and human notice. Does not store stdout/stderr or capture content: only digests, UTF-8 lengths and pass/fail status. Classification OK/PARCIAL/BLOQ is outside this receipt. $id is an opaque identifier, never a URL to download.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "preflight_result_digest", "dispatch_receipt_digest", "human_notice_digest", "adapter_id", "session_name", "reviewed_at", "max_dispatch_age_seconds", "max_notice_age_seconds", "capture_digest", "capture_length_utf8", "capture_lines", "checks", "phases_confirmed", "final_state", "confirms"],

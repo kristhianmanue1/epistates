@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistates.dev/schemas/human-notice-v1.schema.json",
   "title": "Epistates human notice v1",
-  "description": "Aviso humano cerrado: sólo identidad y evento catalogado. Habilita inspección, no concede autoridad. Se liga al dispatch_receipt exacto mediante digest. No transporta prompt, comando ni texto libre.",
+  "description": "Structural descriptor for epistates/human-notice/v1. validation_scope: structural_only. The normative validator is epistates.human_notice.validate_human_notice; the normative binding is validate_human_notice_binding (not expressed here). Closed human notice: only identity and a cataloged event. Enables inspection, does not grant authority. Does not carry prompt, command or free text. $id is an opaque identifier, never a URL to download.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "dispatch_receipt_digest", "adapter_id", "session_name", "event_id", "notified_at", "max_dispatch_age_seconds"],

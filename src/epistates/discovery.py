@@ -32,6 +32,8 @@ from typing import Any, Dict, List
 
 from ._version import __version__
 from .capabilities import CAPABILITY_IDS, capability_descriptors
+from .onboarding import onboarding_inventory
+from .schemas import schema_catalog, schema_ids
 
 
 DISCOVERY_SCHEMA = "epistates/discovery/v1"
@@ -51,9 +53,13 @@ _SCHEMAS_VALIDATABLE: List[str] = [
 # Schemas que ``epistates`` EMITE como salida (no son inputs validables).
 # Slice2: ``validate --format json`` produce ``epistates/validation-report/v1``.
 # ``epistates/discovery/v1`` lo emite ``describe --format json``.
+# Slice3: ``schema list/show`` emiten ``epistates/schema-catalog/v1`` y
+# ``epistates/schema-show/v1`` (estaticos, offline).
 _SCHEMAS_OUTPUT: List[str] = [
     "epistates/discovery/v1",
     "epistates/validation-report/v1",
+    "epistates/schema-catalog/v1",
+    "epistates/schema-show/v1",
 ]
 
 _ANY_PLATFORM = ("any",)
@@ -263,6 +269,26 @@ _CLI_SURFACE: List[Dict[str, Any]] = [
         "description": (
             "Emite el documento estatico epistates/discovery/v1 a stdout "
             "(ASCII-escapado, determinista). Estatico: no sondea el host."
+        ),
+    },
+    {
+        "name": "schema",
+        "kind": "subcommand",
+        "effect_class": "pure_compute",
+        "requires_external_authority": False,
+        "may_mutate_host": False,
+        "authority_enforcement": "not_required",
+        "library_authenticates_authority": False,
+        "binding_behavior": "none",
+        "retry_safety": "safe_to_retry",
+        "description": (
+            "Subcomando agrupado con 'schema list' y 'schema show'. Publica el "
+            "catalogo cerrado de schemas empaquetados (con digests exactos) y "
+            "cada schema con metadata para verificar digest y alcance "
+            "(epistates/schema-catalog/v1 y epistates/schema-show/v1). Estatico "
+            "y offline: lee recursos del paquete via importlib.resources; sin "
+            "subprocess, socket, reloj, Git, tmux ni red. Ningun $id se abre. "
+            "Mostrar un schema no concede autoridad ni ejecutabilidad."
         ),
     },
 ]
@@ -768,6 +794,37 @@ def build_discovery_document() -> Dict[str, Any]:
             "types": [dict(e) for e in _TYPES],
             "errors": [dict(e) for e in _ERRORS],
             "operations": [dict(e) for e in _OPERATIONS],
+        },
+        "installable_resources": {
+            "description": (
+                "Recursos distribuidos dentro del wheel. Single-source: los "
+                "schemas canonicos viven en el paquete (epistates/data/schemas) "
+                "y se acceden via epistates.schemas; la guia, el artefacto "
+                "minimo y el walkthrough via epistates.onboarding. Ninguno es "
+                "instruccion ni grant; $id es identificador opaco, nunca "
+                "fetched."
+            ),
+            "schemas": {
+                "source": "epistates.schemas",
+                "resource_package": "epistates",
+                "resource_subpath": ["data", "schemas"],
+                "schema_ids": schema_ids(),
+                "catalog": schema_catalog(),
+                "validation_scope": "structural_only",
+                "json_schema_ids_are_identifiers_only": True,
+                "json_schema_ids_never_fetched": True,
+                "library_authenticates_authority": False,
+                "authorized_to_execute": False,
+            },
+            "onboarding": {
+                "source": "epistates.onboarding",
+                "resource_package": "epistates",
+                "resource_subpath": ["data", "onboarding"],
+                "inventory": onboarding_inventory(),
+                "is_instruction": False,
+                "is_grant": False,
+                "authorizes_execution": False,
+            },
         },
     }
     # Aislamiento total: la respuesta no comparte referencias con constantes.

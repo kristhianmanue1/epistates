@@ -156,6 +156,8 @@ Y un `retry_safety` de un enum cerrado:
 | `epistates --version` | `pure_compute` | Versión single-source; `exit 0`. |
 | `epistates --help` | `pure_compute` | Ayuda estática. |
 | `epistates describe --format json` | `pure_compute` | Documento estático ASCII-escapado. |
+| `epistates schema list --format json` | `pure_compute` | Catálogo cerrado de los siete schemas empaquetados con digests exactos (`epistates/schema-catalog/v1`). Offline: lee `importlib.resources`. |
+| `epistates schema show <id> --format json` | `pure_compute` | Schema + descriptor (`epistates/schema-show/v1`). Exit `0` ok, `1` id desconocido, `2` uso CLI. Ningún `$id` se abre. |
 | `epistates validate …` | `filesystem_read` | Lee artefactos; no inicia adaptadores. `--format json` emite `epistates/validation-report/v1`. |
 
 `validate --help` muestra las **21 opciones** de binding mas `--format`, una
@@ -379,14 +381,52 @@ autorización del mantenedor.
 8. **`validate` hace filesystem I/O**: traza sus lecturas, pero no inicia
    adaptadores.
 
-## 9. Estado y madurez
+## 9. Schemas empaquetados y onboarding (H4 Slice3)
 
-H1–H3 cerrados. H4 continúa en implementación: Slice1 (descubrimiento estático
-y clasificación de efectos) fue aceptado tras las correcciones C1–C3 y una
-revisión adversarial fresca con decisión `PROCEED`. Slice2 (validación
-machine-readable `epistates/validation-report/v1` y endurecimiento de entrada
-compartido) fue aceptado tras correcciones y revisión adversarial fresca C2 con
-decisión `PROCEED`. Esta aceptación no concede autoridad operativa ni publica
-el release. El CLI de empaquetado de schemas y el CLI operativo quedan para
-cortes posteriores. La candidata `0.1.0a1` permanece sin publicar hasta cerrar
-H4 y repetir el gate de release.
+Los siete schemas canónicos se distribuyen dentro del wheel como package-data
+(`epistates/data/schemas/*.schema.json`) y se acceden por **una sola fuente
+normativa**: el módulo `epistates.schemas`. No existe una segunda copia editable
+ni se leen del cwd del host.
+
+- **`validation_scope: structural_only`.** Cada JSON Schema sólo expresa un
+  subconjunto de la forma; el validador Python nombrado en cada descriptor es
+  **normativo** para la semántica (digests, binding, anti-TOCTOU, frescura y
+  autoridad no se expresan en JSON Schema).
+- **`$id` es un identificador opaco.** Epistates nunca lo abre, resuelve o
+  descarga. `schema list`/`schema show` son estáticos y offline.
+- **Catálogo cerrado e inmutable.** Los accessors devuelven copias/bytes frescos;
+  mutarlos no contamina llamadas posteriores. Cada lectura recomputa `sha256` y
+  falla cerrado ante divergencia, recurso ausente, id desconocido, path
+  traversal (`../`, absolutos, `%2e%2e`), Unicode confusables y caracteres de
+  control (Cc).
+- **Mostrar un schema no concede autoridad ni ejecutabilidad.** Todo descriptor
+  fija `library_authenticates_authority: false`, `authorized_to_execute: false`,
+  `provenance_verified: false`, `authority_status: "external_unverified"`.
+
+Onboarding (también empaquetado, en `epistates/data/onboarding/`): una guía para
+agentes, un artefacto mínimo válido y un walkthrough conceptual con runners en
+memoria. **Ninguno es instrucción ni grant**; cada recurso lo declara en sí
+mismo. El walkthrough es determinista y puro: sin subprocess, socket, reloj, Git,
+`tmux` ni red, y sin consumir fixtures del checkout. Es una demo conceptual, no
+un sandbox ni una prueba de autorización.
+
+El inventario machine-readable se publica en `describe --format json` bajo
+`installable_resources` y vía `epistates.onboarding.onboarding_inventory()`.
+
+## 10. Estado y madurez
+
+H1–H3 cerrados. H4: Slice1 (descubrimiento estático y clasificación de efectos)
+fue aceptado tras las correcciones C1–C3 y una revisión adversarial fresca con
+decisión `PROCEED`. Slice2 (validación machine-readable
+`epistates/validation-report/v1` y endurecimiento de entrada compartido) fue
+aceptado tras correcciones y revisión adversarial fresca C2 con decisión
+`PROCEED`. Slice3 (schemas y onboarding instalables: fuente canónica de schemas
+empaquetados, CLI `schema list/show`, guía, artefacto mínimo y walkthrough) fue
+**aceptado** tras la corrección C1 y una revisión adversarial fresca con
+decisión `PROCEED` y cero hallazgos P0/P1/P2 (véase
+`docs/adversarial-h4-slice3.md`). El gate de cierre H4 y su revisión adversarial
+final C1 terminaron `PASS`/`PROCEED` (2026-08-12), con dos wheels reproducibles,
+smoke aislado, 793 pruebas y cero hallazgos P0/P1/P2. H4 queda cerrado
+localmente. Esta documentación no concede autoridad operativa y la candidata
+`0.1.0a1` sigue **sin publicar**: integración, tag y publicación requieren
+autoridad separada del mantenedor.

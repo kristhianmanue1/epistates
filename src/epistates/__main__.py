@@ -54,16 +54,20 @@ from .contracts import ValidationError, validate_task_card
 from .dispatch import _MESSAGE_MAX_BYTES, validate_dispatch_receipt, validate_dispatch_receipt_binding
 from .discovery import render_discovery_json
 from .human_notice import validate_human_notice, validate_human_notice_binding
+from .onboarding import onboarding_inventory
 from .preflight import validate_preflight_binding, validate_preflight_result
 from .review import validate_review_evidence, validate_review_evidence_binding
+from .schemas import SchemaError, schema_catalog, schema_descriptor, read_schema_document
 
 
 # ---------------------------------------------------------------------------
-# Schema del reporte machine-readable publicado por este corte.
+# Schemas de salida publicados por los cortes (validate + describe + schema).
 # ---------------------------------------------------------------------------
 
 _REPORT_SCHEMA = "epistates/validation-report/v1"
 _REPORT_VERSION = "v1"
+_SCHEMA_CATALOG_SCHEMA = "epistates/schema-catalog/v1"
+_SCHEMA_SHOW_SCHEMA = "epistates/schema-show/v1"
 
 # Límite de bytes por artefacto JSON leído por validate (1 MiB). Mensajes van
 # por su propio límite (_MESSAGE_MAX_BYTES).
@@ -941,6 +945,64 @@ def _build_parser() -> "_SafeArgumentParser":
         required=True,
         help="Formato de salida. En este corte solo se soporta 'json'.",
     )
+
+    # -----------------------------------------------------------------------
+    # schema list / schema show: catalogo empaquetado, estatico y offline.
+    # -----------------------------------------------------------------------
+    schema_cmd = subparsers.add_parser(
+        "schema",
+        allow_abbrev=False,
+        help="listar y mostrar schemas empaquetados (offline, determinista)",
+        description=(
+            "Publica el catalogo cerrado de schemas empaquetados y cada schema "
+            "con metadata para verificar digest y alcance. Estatico y offline: "
+            "sin subprocess, socket, reloj, Git, tmux ni red. Ningun $id se "
+            "abre. Mostrar un schema no concede autoridad ni ejecutabilidad."
+        ),
+        formatter_class=_FixedWidthHelpFormatter,
+    )
+    schema_sub = schema_cmd.add_subparsers(
+        dest="schema_command", required=True, parser_class=_SafeArgumentParser,
+    )
+    schema_list = schema_sub.add_parser(
+        "list",
+        allow_abbrev=False,
+        help="listar el catalogo de schemas con digests exactos",
+        description=(
+            "Emite un unico documento JSON epistates/schema-catalog/v1 con el "
+            "catalogo cerrado y los digests exactos. Exit 0 en exito; exit 2 "
+            "en uso CLI incorrecto."
+        ),
+        formatter_class=_FixedWidthHelpFormatter,
+    )
+    schema_list.add_argument(
+        "--format",
+        choices=["json"],
+        required=True,
+        help="Formato de salida. En este corte solo se soporta 'json'.",
+    )
+    schema_show = schema_sub.add_parser(
+        "show",
+        allow_abbrev=False,
+        help="mostrar un schema y su descriptor (digest + alcance)",
+        description=(
+            "Emite un unico documento JSON epistates/schema-show/v1 con el "
+            "schema solicitado y metadata para comprobar digest y alcance. "
+            "Exit 0 en exito; exit 1 si el id es desconocido; exit 2 en uso "
+            "CLI incorrecto."
+        ),
+        formatter_class=_FixedWidthHelpFormatter,
+    )
+    schema_show.add_argument(
+        "schema_id",
+        help="Id estable del schema (p. ej. 'epistates/task-card/v1').",
+    )
+    schema_show.add_argument(
+        "--format",
+        choices=["json"],
+        required=True,
+        help="Formato de salida. En este corte solo se soporta 'json'.",
+    )
     return parser
 
 
@@ -1279,6 +1341,63 @@ def render_report_json(report: Mapping[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# schema list/show: salida estatica, offline, determinista, ASCII-escapada.
+# ---------------------------------------------------------------------------
+#
+# ``schema list`` publica el catalogo cerrado con digests exactos. ``schema show``
+# publica el schema solicitado junto con el descriptor (digest + alcance). Ambos
+# son estaticos: solo leen recursos del paquete via importlib.resources; sin
+# subprocess, socket, reloj, Git, tmux ni red. Ningun ``$id`` se abre. Mostrar un
+# schema nunca concede autoridad ni ejecutabilidad.
+
+def build_schema_catalog_report() -> Dict[str, Any]:
+    """Construye el documento ``epistates/schema-catalog/v1`` (fresco)."""
+    return {
+        "schema": _SCHEMA_CATALOG_SCHEMA,
+        "package_version": __version__,
+        "provenance_verified": False,
+        "authority_status": "external_unverified",
+        "authorized_to_execute": False,
+        "json_schema_ids_are_identifiers_only": True,
+        "json_schema_ids_never_fetched": True,
+        "validation_scope": "structural_only",
+        "catalog": schema_catalog(),
+    }
+
+
+def build_schema_show_report(schema_id: str) -> Dict[str, Any]:
+    """Construye el documento ``epistates/schema-show/v1`` para un id exacto."""
+    descriptor = schema_descriptor(schema_id)
+    document = read_schema_document(schema_id)
+    return {
+        "schema": _SCHEMA_SHOW_SCHEMA,
+        "package_version": __version__,
+        "provenance_verified": False,
+        "authority_status": "external_unverified",
+        "authorized_to_execute": False,
+        "schema_id": schema_id,
+        "descriptor": descriptor,
+        "json_schema": document,
+    }
+
+
+def render_schema_catalog_json() -> str:
+    return json.dumps(build_schema_catalog_report(), ensure_ascii=True, indent=2) + "\n"
+
+
+def render_schema_show_json(schema_id: str) -> str:
+    return json.dumps(build_schema_show_report(schema_id), ensure_ascii=True, indent=2) + "\n"
+
+
+def schema_catalog_schema() -> str:
+    return _SCHEMA_CATALOG_SCHEMA
+
+
+def schema_show_schema() -> str:
+    return _SCHEMA_SHOW_SCHEMA
+
+
+# ---------------------------------------------------------------------------
 # Reporte: códigos de error publicados (taxonomía cerrada).
 # ---------------------------------------------------------------------------
 #
@@ -1346,6 +1465,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # Estatico y determinista: stdout = unico JSON ASCII, stderr vacio.
         sys.stdout.write(render_discovery_json())
         return 0
+
+    if args.command == "schema":
+        # Estatico y offline: lee recursos del paquete via importlib.resources.
+        # Sin subprocess, socket, reloj, Git, tmux ni red. Ningun $id se abre.
+        try:
+            if args.schema_command == "list":
+                sys.stdout.write(render_schema_catalog_json())
+                return 0
+            # schema_command == "show"
+            try:
+                sys.stdout.write(render_schema_show_json(args.schema_id))
+                return 0
+            except SchemaError as exc:
+                # id desconocido / invalido: exit 1 documentado, stderr con
+                # mensaje saneado (stdout permanece sin JSON parcial).
+                sys.stderr.write(str(exc) + "\n")
+                return 1
+        except SchemaError as exc:
+            sys.stderr.write(str(exc) + "\n")
+            return 1
 
     # validate command.
     schema: Optional[str] = None
