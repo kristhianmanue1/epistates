@@ -1,7 +1,8 @@
 # Plan inicial — E1 contratos y conformidad
 
 **Estado:** H1 y H2 cerrados; H3 en curso (Slice1, Slice2 y Slice3 aceptados;
-notificación y auditoría post-ejecución pendientes).
+Slice4 implementado — aviso humano cerrado e inspección post-ejecución una vez,
+pendiente de ronda adversarial independiente).
 **Fecha:** 2026-08-11. **Fuente:** definición fundacional y protocolo técnico
 del piloto.
 
@@ -27,8 +28,10 @@ externo.
   independiente (observación read-only real del host vía runner inyectable y
   `observe_opencode_tmux`). Slice3 implementado y aceptado tras auditoría
   independiente (entrega literal opencode-tmux y recibo
-  `dispatch-receipt/v1`). Los cortes operativos restantes (notificación,
-  captura y auditoría post-ejecución) siguen abiertos.
+  `dispatch-receipt/v1`). Slice4 implementado y aceptado tras auditoría
+  independiente (aviso humano cerrado `human-notice/v1`, frontera de inspección
+  `ReviewRunner` y evidencia portable `review-evidence/v1`). La clasificación
+  `OK`/`PARCIAL`/`BLOQ` y `apply_audit` siguen fuera de este corte.
 
 ## Contrato H1
 
@@ -316,6 +319,121 @@ La evidencia y los riesgos residuales aceptados están en
 [`adversarial-h3-slice3.md`](adversarial-h3-slice3.md). La decisión es
 `proceed` para Slice3; H3 completo permanece abierto.
 
+## Contrato H3 — Slice4
+
+**Entradas:** contrato H2, Slice1/Slice2/Slice3 aceptados, y la
+responsabilidad del controlador de realizar una inspección única tras un aviso
+humano, sin convertirse en un gateway ni en un watcher. **Salidas:** aviso
+humano cerrado `epistates/human-notice/v1`, frontera de inspección separada e
+inyectable (`ReviewRunner` + `TmuxReviewRunner`) y evidencia portable
+`epistates/review-evidence/v1`.
+
+Slice4 es **sólo la inspección post-ejecución una vez**: no implementa gateway,
+watcher, polling, automatización de señales ni aceptación. No hace commit, push
+ni PR. La clasificación `OK`/`PARCIAL`/`BLOQ` y `apply_audit` quedan **fuera** de
+este corte: el recibo aporta evidencia cruda (pass/fail por check + capture),
+no una decisión.
+
+Definition of Done de Slice4 (implementado):
+
+- el aviso `human-notice/v1` contiene **sólo identidad y evento catalogado**
+  (`external_completion`); sin prompt, comando, autoridad ni texto libre. Ligado
+  a `task`/`run`/`attempt`, sesión y `dispatch_receipt` exacto (digest);
+- el aviso sólo habilita inspección: la orquestación valida timestamps/frescura
+  inyectados y estado `WAITING_EXTERNAL` antes de cualquier subprocess;
+- la frontera `ReviewRunner` está **separada** del `HostRunner` y del
+  `LiteralDispatcher`, es inyectable y read-only, con operaciones cerradas:
+  `capture_once` (una única captura `capture-pane` acotada) y `run_check`
+  (checks resueltos desde el catálogo confiable `{git_status, diff_check,
+  unit_tests}`); el caller nunca aporta argv;
+- el runner de producción usa executables absolutos, argv list, `shell=False`,
+  `stdin=DEVNULL`, entorno mínimo construido desde cero, `timeout`/`output`
+  acotados, UTF-8 estricto y errores saneados (sin stdout/stderr en mensajes);
+  `capture-pane` es exactamente una llamada con `-J` (join explícito), rango
+  acotado (`-S -{N}`), y el contenido **no** sale del runner (sólo digest +
+  longitud);
+- la orquestación `review_opencode_tmux` valida **toda la cadena**
+  (task + adapter + preflight binding + dispatch receipt binding + message +
+  política externa + human notice binding) antes de efectos; exige
+  `WAITING_EXTERNAL`; **precalcula** transiciones `notify -> REVIEW_READY ->
+  review -> REVIEWING` antes de cualquier captura o check;
+- ejecuta **una sola captura** y **una sola vez cada check requerido** (orden
+  determinista, resueltos desde la tarjeta vía `checks` declarados +
+  `evidence.required`); el binding de `review-evidence/v1` exige **igualdad
+  exacta** entre `evidence.checks` y los requeridos (sin faltantes, extras ni
+  duplicados); **no reintenta** ante resultado indeterminado
+  (`IndeterminateReviewError`); un check que retorna `fail` es un resultado
+  válido, no un error;
+- los entornos son **deterministas**: `TMPDIR=/tmp` silencia el warning de
+  `confstr(_CS_DARWIN_USER_TEMP_DIR)` en macOS bajo entorno mínimo; `unit_tests`
+  usa `PYTHONPATH=<worktree>/src` + `PYTHONNOUSERSITE=1` por instancia para ligar
+  inequívocamente el worktree (no el checkout principal); los argv de Git
+  desactivan fsmonitor (`-c core.fsmonitor=false`), config externa (env) y, para
+  `diff_check`, cubren staged + unstado vía `--no-ext-diff --check HEAD --`;
+- tras cada efecto, la orquestación **valida completamente** el `CaptureOutcome`
+  y cada `CheckOutcome` (digest, longitudes, status, `check_id`, `capture_lines`
+  en rango); un resultado inválido es `IndeterminateReviewError` sin reintento.
+  Tras ensamblar la evidencia, la valida estructuralmente antes de retornar;
+- el recibo `review-evidence/v1` **no** guarda stdout/stderr ni el contenido de
+  la captura: sólo digests, longitudes UTF-8, estados pass/fail por check,
+  binding exacto (cadena completa), `phases_confirmed == [capture_once,
+  checks_once]`, `final_state == REVIEWING` y `confirms == "inspection_only"`;
+- el CLI registra ambos schemas, exige binding completo y **rechaza opciones
+  inaplicables** por schema (ninguna se ignora silenciosamente);
+- la suite unittest termina en verde.
+
+Decisiones de diseño de Slice4:
+
+- **Aviso = identidad + evento, no autoridad.** El aviso cierra el ciclo humano
+  sin conceder permiso de escritura. Su `event_id` es de un catálogo cerrado;
+  nunca transporta texto libre, comando ni autoridad.
+- **Dos frescuras inyectadas, política externa.** El aviso valida
+  `notified_at` vs `dispatched_at` (`max_dispatch_age_seconds`); la revisión
+  valida `reviewed_at` vs `notified_at` (`max_notice_age_seconds`). Ambas con
+  política externa del controlador (igualdad exacta + re_deriva), igual que en
+  Slice3, para impedir auto-amplificación.
+- **Una captura, cada check una vez, sin reintento.** La inspección es
+  deliberadamente única: `capture_once` exactamente una vez y `run_check`
+  exactamente una vez por check requerido. Un fallo indeterminado (timeout,
+  OSError, UTF-8 inválido, overflow) produce `IndeterminateReviewError` y no se
+  reintenta: la duplicación silenciosa queda excluida.
+- **Checks cerrados, pass/fail por exit code.** El caller aporta sólo
+  `check_id` (identificador del catálogo); el argv lo construye el runner
+  internamente. `git_status` pass = exit 0 (evidencia); `diff_check`
+  (`git diff --no-ext-diff --check HEAD --`) cubre staged + unstado, pass = exit
+  0, fail = exit 1; `unit_tests` pass = exit 0, fail = non-zero. Los checks
+  requeridos **siempre** incluyen todos los `task_card.checks` además de los
+  mapeos de `evidence.required`; el binding exige igualdad exacta.
+- **Contenido sensible ausente del recibo.** El digest y la longitud de la
+  captura y de cada check se calculan dentro del runner; el texto y los
+  stdout/stderr nunca entran en `review-evidence/v1`.
+- **Clasificación fuera del corte.** El recibo aporta pass/fail crudo; decidir
+  `OK`/`PARCIAL`/`BLOQ` es autoridad del siguiente corte (auditoría), no de la
+  inspección.
+
+Honestidad sobre unicidad global:
+
+- la orquestación es **stateless**: no persiste `event_id` ni estado. Bloquea
+  replay sólo si el caller avanza el estado (`WAITING_EXTERNAL` ->
+  `REVIEWING`) fuera de la función. Un caller que mienta y vuelva a presentar
+  `WAITING_EXTERNAL` no puede detectarse aquí; la unicidad global exige
+  persistir `(run_id, attempt_id, event_id, estado)` fuera.
+
+Riesgos residuales aceptados de Slice4:
+
+- la unicidad global del aviso depende de persistencia externa: esta función
+  stateless no detecta replay si el caller no avanza el estado;
+- `max_output_bytes` se aplica después de capturar la salida del proceso (no es
+  aislamiento de memoria del SO); el contenido se descarta y nunca se persiste;
+- un resultado indeterminado (`IndeterminateReviewError`) exige intervención
+  humana y nunca se reintenta automáticamente;
+- el check `unit_tests` ejecuta la suite de pruebas del worktree en un entorno
+  mínimo (sin `PATH`/`HOME`/`TMUX*`): proyectos que requieran configuración de
+  entorno específica podrían necesitar un adaptador posterior;
+- el recibo confirma inspección técnica (captura + checks una vez), no que el
+  agente comprendió ni que el resultado es aceptable; la clasificación queda
+  para el siguiente corte.
+
 ### Reproducibilidad del DoD
 
 El intérprete del auditor es el venv editable del worktree principal:
@@ -348,5 +466,23 @@ PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates 
   --run-id run-001 --attempt-id attempt-001 \
   --expected-session-name epistates-opencode --expected-command idle \
   --max-preflight-age-seconds 600 \
+  --message-file fixtures/dispatch-message.txt
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates validate fixtures/human-notice-ok.json \
+  --task-card fixtures/task-card-valid.json \
+  --adapter-capabilities fixtures/adapter-capabilities-opencode-tmux.json \
+  --dispatch-receipt fixtures/dispatch-receipt-ok.json \
+  --run-id run-001 --attempt-id attempt-001 \
+  --expected-session-name epistates-opencode \
+  --max-dispatch-age-seconds 3600
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates validate fixtures/review-evidence-ok.json \
+  --task-card fixtures/task-card-valid.json \
+  --adapter-capabilities fixtures/adapter-capabilities-opencode-tmux.json \
+  --preflight-result fixtures/preflight-result-ok.json \
+  --dispatch-receipt fixtures/dispatch-receipt-ok.json \
+  --human-notice fixtures/human-notice-ok.json \
+  --run-id run-001 --attempt-id attempt-001 \
+  --expected-session-name epistates-opencode --expected-command idle \
+  --max-preflight-age-seconds 600 --max-dispatch-age-seconds 3600 \
+  --max-notice-age-seconds 3600 \
   --message-file fixtures/dispatch-message.txt
 ```

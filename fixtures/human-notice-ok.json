@@ -1,0 +1,14 @@
+{
+  "schema": "epistates/human-notice/v1",
+  "task_id": "e1-contracts",
+  "run_id": "run-001",
+  "attempt_id": "attempt-001",
+  "task_card_digest": "sha256:c14c033bd0e001a4db801f99e5ab60dc75dee7c4ca597305740124e95113d3c9",
+  "adapter_digest": "sha256:5427ac8135d2d16e813e2104a17aad11bb2cd4e133b3e4fea6994a103bde56bd",
+  "dispatch_receipt_digest": "sha256:98bcf82f46f82ac75c211516baba41ce1e67a32ee27d24acb8953efaf97e9910",
+  "adapter_id": "opencode-tmux",
+  "session_name": "epistates-opencode",
+  "event_id": "external_completion",
+  "notified_at": "2026-08-11T18:30:00Z",
+  "max_dispatch_age_seconds": 3600
+}

@@ -24,7 +24,8 @@ class CliValidationTests(unittest.TestCase):
     def test_audit_requires_task_card(self):
         code, output = self.call("validate", str(FIXTURES / "audit-result-valid.json"))
         self.assertEqual(code, 1)
-        self.assertIn("requiere --task-card", output)
+        self.assertIn("audit-result requiere", output)
+        self.assertIn("--task-card", output)
 
     def test_audit_with_exact_task_card_is_valid(self):
         code, output = self.call(
@@ -225,7 +226,7 @@ class CliInapplicableBindingOptionsTests(unittest.TestCase):
             "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
         )
         self.assertEqual(code, 1)
-        self.assertIn("sólo aplican a dispatch-receipt", output)
+        self.assertIn("inaplicables a preflight-result", output)
 
     def test_preflight_result_rejects_max_age_option(self):
         code, output = self.call(
@@ -237,7 +238,7 @@ class CliInapplicableBindingOptionsTests(unittest.TestCase):
             "--max-preflight-age-seconds", "600",
         )
         self.assertEqual(code, 1)
-        self.assertIn("sólo aplican a dispatch-receipt", output)
+        self.assertIn("inaplicables a preflight-result", output)
 
     def test_audit_result_rejects_preflight_result_option(self):
         code, output = self.call(
@@ -247,7 +248,7 @@ class CliInapplicableBindingOptionsTests(unittest.TestCase):
             "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
         )
         self.assertEqual(code, 1)
-        self.assertIn("sólo aplican", output)
+        self.assertIn("inaplicables a audit-result", output)
 
     def test_adapter_capabilities_rejects_max_age_option(self):
         code, output = self.call(
@@ -287,3 +288,198 @@ class CliBoundedMessageReadTests(unittest.TestCase):
         path = FIXTURES / "dispatch-message.txt"
         raw = _read_bounded_message(path, _MESSAGE_MAX_BYTES)
         self.assertEqual(raw.decode("utf-8"), path.read_text(encoding="utf-8"))
+
+
+def _human_notice_args():
+    return [
+        "validate", str(FIXTURES / "human-notice-ok.json"),
+        "--task-card", str(FIXTURES / "task-card-valid.json"),
+        "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+        "--dispatch-receipt", str(FIXTURES / "dispatch-receipt-ok.json"),
+        "--run-id", "run-001", "--attempt-id", "attempt-001",
+        "--expected-session-name", "epistates-opencode",
+        "--max-dispatch-age-seconds", "3600",
+    ]
+
+
+def _review_evidence_args():
+    return [
+        "validate", str(FIXTURES / "review-evidence-ok.json"),
+        "--task-card", str(FIXTURES / "task-card-valid.json"),
+        "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+        "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        "--dispatch-receipt", str(FIXTURES / "dispatch-receipt-ok.json"),
+        "--human-notice", str(FIXTURES / "human-notice-ok.json"),
+        "--run-id", "run-001", "--attempt-id", "attempt-001",
+        "--expected-session-name", "epistates-opencode",
+        "--expected-command", "idle",
+        "--max-preflight-age-seconds", "600",
+        "--max-dispatch-age-seconds", "3600",
+        "--max-notice-age-seconds", "3600",
+        "--message-file", str(FIXTURES / "dispatch-message.txt"),
+    ]
+
+
+class CliHumanNoticeTests(unittest.TestCase):
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_human_notice_requires_full_binding(self):
+        code, output = self.call("validate", str(FIXTURES / "human-notice-ok.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("human-notice requiere", output)
+        for option in ("--dispatch-receipt", "--max-dispatch-age-seconds",
+                       "--task-card", "--expected-session-name"):
+            self.assertIn(option, output)
+
+    def test_human_notice_binds_valid(self):
+        code, output = self.call(*_human_notice_args())
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_human_notice_wrong_session_is_invalid(self):
+        args = _human_notice_args()
+        args[args.index("epistates-opencode")] = "wrong-session"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("session_name", output)
+
+    def test_human_notice_bad_max_dispatch_age_is_invalid(self):
+        args = _human_notice_args()
+        args[args.index("3600")] = "not-a-number"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("--max-dispatch-age-seconds debe ser un número", output)
+
+    def test_human_notice_auto_amplified_policy_is_invalid(self):
+        notice = json.loads((FIXTURES / "human-notice-ok.json").read_text("utf-8"))
+        notice["notified_at"] = "2026-08-11T20:00:00Z"
+        notice["max_dispatch_age_seconds"] = 7200
+        tmp = FIXTURES / "human-notice-autoamplified.json"
+        tmp.write_text(json.dumps(notice), encoding="utf-8")
+        try:
+            args = _human_notice_args()
+            args[1] = str(tmp)
+            code, output = self.call(*args)
+        finally:
+            tmp.unlink()
+        self.assertEqual(code, 1)
+        self.assertIn("política esperada", output)
+
+
+class CliReviewEvidenceTests(unittest.TestCase):
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_review_evidence_requires_full_binding(self):
+        code, output = self.call("validate", str(FIXTURES / "review-evidence-ok.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("review-evidence requiere", output)
+        for option in ("--human-notice", "--dispatch-receipt",
+                       "--max-notice-age-seconds", "--message-file"):
+            self.assertIn(option, output)
+
+    def test_review_evidence_binds_valid(self):
+        code, output = self.call(*_review_evidence_args())
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_review_evidence_wrong_message_is_invalid(self):
+        args = _review_evidence_args()
+        args[-1] = str(FIXTURES / "task-card-valid.json")
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("message_digest", output)
+
+    def test_review_evidence_auto_amplified_notice_policy_is_invalid(self):
+        evidence = json.loads((FIXTURES / "review-evidence-ok.json").read_text("utf-8"))
+        evidence["max_notice_age_seconds"] = 7200
+        tmp = FIXTURES / "review-evidence-autoamplified.json"
+        tmp.write_text(json.dumps(evidence), encoding="utf-8")
+        try:
+            args = _review_evidence_args()
+            args[1] = str(tmp)
+            code, output = self.call(*args)
+        finally:
+            tmp.unlink()
+        self.assertEqual(code, 1)
+        self.assertIn("política esperada", output)
+
+
+class CliNewSchemaInapplicableOptionsTests(unittest.TestCase):
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_task_card_rejects_dispatch_receipt_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "task-card-valid.json"),
+            "--dispatch-receipt", str(FIXTURES / "dispatch-receipt-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_task_card_rejects_human_notice_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "task-card-valid.json"),
+            "--human-notice", str(FIXTURES / "human-notice-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_human_notice_rejects_preflight_result_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "human-notice-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--dispatch-receipt", str(FIXTURES / "dispatch-receipt-ok.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode",
+            "--max-dispatch-age-seconds", "3600",
+            "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a human-notice", output)
+
+    def test_human_notice_rejects_message_file_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "human-notice-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--dispatch-receipt", str(FIXTURES / "dispatch-receipt-ok.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode",
+            "--max-dispatch-age-seconds", "3600",
+            "--message-file", str(FIXTURES / "dispatch-message.txt"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a human-notice", output)
+
+    def test_dispatch_receipt_rejects_human_notice_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "dispatch-receipt-ok.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+            "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-session-name", "epistates-opencode",
+            "--expected-command", "idle",
+            "--max-preflight-age-seconds", "600",
+            "--message-file", str(FIXTURES / "dispatch-message.txt"),
+            "--human-notice", str(FIXTURES / "human-notice-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a dispatch-receipt", output)
+
+    def test_review_evidence_rejects_nothing_when_complete(self):
+        # review-evidence admite todas las opciones; no debe rechazar ninguna.
+        code, output = self.call(*_review_evidence_args())
+        self.assertEqual(code, 0)

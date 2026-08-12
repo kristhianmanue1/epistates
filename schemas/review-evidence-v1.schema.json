@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistates.dev/schemas/review-evidence-v1.schema.json",
+  "title": "Epistates review evidence v1",
+  "description": "Evidencia portable de una inspección post-ejecución (una captura + checks una vez). Ligada a la cadena completa: tarjeta, adaptador, preflight, dispatch receipt y aviso humano. No guarda stdout/stderr ni el contenido de la captura: sólo digests, longitudes UTF-8 y estados pass/fail. La clasificación OK/PARCIAL/BLOQ queda fuera de este recibo.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_id", "run_id", "attempt_id", "task_card_digest", "adapter_digest", "preflight_result_digest", "dispatch_receipt_digest", "human_notice_digest", "adapter_id", "session_name", "reviewed_at", "max_dispatch_age_seconds", "max_notice_age_seconds", "capture_digest", "capture_length_utf8", "capture_lines", "checks", "phases_confirmed", "final_state", "confirms"],
+  "properties": {
+    "schema": {"const": "epistates/review-evidence/v1"},
+    "task_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "attempt_id": {"$ref": "#/$defs/id"},
+    "task_card_digest": {"$ref": "#/$defs/digest"},
+    "adapter_digest": {"$ref": "#/$defs/digest"},
+    "preflight_result_digest": {"$ref": "#/$defs/digest"},
+    "dispatch_receipt_digest": {"$ref": "#/$defs/digest"},
+    "human_notice_digest": {"$ref": "#/$defs/digest"},
+    "adapter_id": {"$ref": "#/$defs/id"},
+    "session_name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"},
+    "reviewed_at": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "max_dispatch_age_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 7200},
+    "max_notice_age_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 7200},
+    "capture_digest": {"$ref": "#/$defs/digest"},
+    "capture_length_utf8": {"type": "integer", "minimum": 0},
+    "capture_lines": {"type": "integer", "minimum": 1, "maximum": 200},
+    "checks": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["check_id", "status", "digest", "length_utf8"],
+        "properties": {
+          "check_id": {"enum": ["git_status", "diff_check", "unit_tests"]},
+          "status": {"enum": ["pass", "fail"]},
+          "digest": {"$ref": "#/$defs/digest"},
+          "length_utf8": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "phases_confirmed": {
+      "type": "array",
+      "prefixItems": [{"const": "capture_once"}, {"const": "checks_once"}],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "final_state": {"const": "REVIEWING"},
+    "confirms": {"const": "inspection_only"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}
