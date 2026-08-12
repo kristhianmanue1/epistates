@@ -1,8 +1,8 @@
 # Plan inicial — E1 contratos y conformidad
 
-**Estado:** H1 y H2 cerrados; H3 en curso (Slice1, Slice2 y Slice3 aceptados;
-Slice4 implementado — aviso humano cerrado e inspección post-ejecución una vez,
-pendiente de ronda adversarial independiente).
+**Estado:** H1, H2 y H3 cerrados; Slice1–Slice5 aceptados tras rondas
+adversariales independientes. El siguiente gate es preparar la primera release
+experimental.
 **Fecha:** 2026-08-11. **Fuente:** definición fundacional y protocolo técnico
 del piloto.
 
@@ -21,7 +21,8 @@ externo.
   ronda adversarial final `proceed` tras tres iteraciones de endurecimiento.
 - H2 — resultado de auditoría y transiciones: hecho; ronda adversarial final
   `proceed`.
-- H3 — adaptador `opencode-tmux/v1` con preflight: en curso. Slice1
+- H3 — adaptador `opencode-tmux/v1` con ciclo supervisado completo: cerrado.
+  Slice1
   implementado (contrato neutral `adapter-capabilities/v1` y preflight puro
   fail-closed con resultado portable `preflight-result/v1`) y aceptado tras
   ronda adversarial `proceed`. Slice2 implementado y aceptado tras auditoría
@@ -30,8 +31,11 @@ externo.
   independiente (entrega literal opencode-tmux y recibo
   `dispatch-receipt/v1`). Slice4 implementado y aceptado tras auditoría
   independiente (aviso humano cerrado `human-notice/v1`, frontera de inspección
-  `ReviewRunner` y evidencia portable `review-evidence/v1`). La clasificación
-  `OK`/`PARCIAL`/`BLOQ` y `apply_audit` siguen fuera de este corte.
+  `ReviewRunner` y evidencia portable `review-evidence/v1`). Slice5
+  implementado, corregido y aceptado tras auditoría independiente (puente
+  `review-evidence/v1` → `audit-result/v1` → `apply_audit` puro, con política
+  externa de timestamp, autoridad inyectada y anti-downgrade estructural; sin
+  ejecución ni automatización).
 
 ## Contrato H1
 
@@ -434,6 +438,144 @@ Riesgos residuales aceptados de Slice4:
   agente comprendió ni que el resultado es aceptable; la clasificación queda
   para el siguiente corte.
 
+## Contrato H3 — Slice5
+
+**Entradas:** contrato H2, Slice1/Slice2/Slice3/Slice4 aceptados, y la
+responsabilidad del controlador de cerrar la auditoría ligando la inspección al
+audit-result exacto **antes** de aplicar una transición. **Salidas:** puente
+puro `review-evidence/v1` → `audit-result/v1` → `apply_audit`
+(`epistates.audit_review`), **ampliación pre-release** del `audit-result/v1`
+(`review_evidence_digest` + `capture` en el catálogo de `evidence_id`), fixture
+`audit-result-review-bound.json` y CLI de binding completo.
+
+Esta es una **ampliación pre-release del contrato**, **no** "version-compatible"
+ni "backward compatible": los artefactos bridge NO son aceptados por validadores
+`v1` anteriores a Slice5 (rechazan `review_evidence_digest` como campo
+desconocido). El validador nuevo sigue aceptando artefactos H2 puros (sin campos
+bridge) por compatibilidad de lectura.
+
+Slice5 es **sólo el cierre del puente**: no añade ejecución, automatización,
+gateway, watcher, polling ni persistencia. No hace commit, push ni PR. No lanza
+subprocesos, no lee el reloj, no escribe estado ni archivos. La decisión
+(`classification`/`decision`/`decision_reference`), la autoridad
+(`grant_id`/`grant_digest`) y el timestamp (`observed_at`) llegan como decisión
+explícita inyectada por el controlador/mantenedor y se validan contra parámetros
+externos esperados.
+
+Definition of Done de Slice5 (implementado, corregido tras ronda adversarial C1):
+
+- `validate_audit_review_binding` reutiliza los validadores existentes
+  (`validate_review_evidence_binding` para la cadena completa y
+  `validate_audit_binding` para tarjeta/grant/run/attempt) y añade, sin
+  duplicar reglas: `review_evidence_digest` presente y coincidente, evidencia
+  derivada exclusivamente desde `review-evidence`, decisión anti-auto-amplificada,
+  **política externa de timestamp** y **autoridad externa inyectada**;
+- la evidencia del audit-result coincide **exactamente** (identidad/status/digest
+  y orden) con la derivada desde `review-evidence`: ni checks omitidos, extra ni
+  reordenados; la captura queda representada mediante `evidence_id` cerrado
+  (`capture`) y digest verificable;
+- `classification`, `decision` y `authority_binding.decision_reference` llegan
+  como decisión explícita inyectada y se validan contra los parámetros externos
+  esperados; no se derivan de exit codes ni el ejecutor se autoacepta;
+- **política externa de timestamp:** `observed_at` debe coincidir **exactamente**
+  con `expected_observed_at` inyectado y satisfacer una ventana
+  `max_audit_age_seconds` externa (finita, positiva, techo 7200s): exige
+  `observed_at >= review_evidence.reviewed_at` y delta <= política. Un timestamp
+  futuro autodeclarado, anterior al review o stale se rechaza; no se lee el reloj;
+- **autoridad externa inyectada:** `authority_binding.grant_id`/`grant_digest`
+  se validan contra `expected_grant_id`/`expected_grant_digest` externos, que a
+  su vez deben coincidir con `task_card.authority`. El grant de la tarjeta es
+  correlación, no autoridad actual; un JSON no puede elegir su propia autoridad;
+- un review con cualquier check `fail` no puede producir `OK`/`proceed`/`DONE`;
+  evidencia incompleta o misbound falla cerrado;
+- **bidireccionalidad anti-downgrade:** `capture` y `review_evidence_digest` se
+  requieren mutuamente en la validación estructural/schema. No se puede
+  downgradear un artefacto bridge a H2 eliminando un solo campo (p. ej. sólo
+  `review_evidence_digest` manteniendo `capture`);
+- `apply_audit_from_review` exige `current_state == REVIEWING`, valida **todo**
+  antes de `apply_audit` (cero llamadas a `apply_audit` ante fallo de timestamp,
+  política o autoridad), no ejecuta subprocess, no lee reloj, no escribe estado
+  ni archivos, y retorna el audit-result ligado junto con el estado derivado;
+- la semántica de transiciones es exactamente la del ADR-0001
+  (`OK`/`proceed`→`DONE`, `PARCIAL`/`fix-and-retry`→`CORRECTION_SENT`,
+  `PARCIAL`/`escalate`→`BLOCKED`, `BLOQ`/`escalate`→`BLOCKED`); sin
+  combinaciones nuevas;
+- el CLI registra el modo puente del `audit-result` (detectado por
+  `review_evidence_digest` presente), exige el binding completo y **rechaza**
+  opciones inaplicables por schema (ninguna se ignora silenciosamente); las
+  opciones de decisión y autoridad (`--review-evidence`,
+  `--expected-classification`, `--expected-decision`,
+  `--expected-decision-reference`, `--expected-observed-at`,
+  `--max-audit-age-seconds`, `--expected-grant-id`, `--expected-grant-digest`)
+  sólo aplican al audit-result en modo puente;
+- la suite unittest termina en verde.
+
+Decisiones de diseño de Slice5:
+
+- **Ampliación pre-release, no "version-compatible".** Se añaden
+  `review_evidence_digest` y `capture` al schema `audit-result/v1` como
+  ampliación pre-release. El validador nuevo acepta artefactos H2 (sin campos
+  bridge) y bridge (con ellos); los validadores v1 anteriores rechazan los
+  bridge. No se duplican reglas entre código y schema.
+- **Bidireccionalidad `capture` <-> `review_evidence_digest`.** El validador
+  estructural impone que ambos campos se requieren mutuamente. Así se impide el
+  downgrade: eliminar sólo `review_evidence_digest` de un artefacto bridge
+  manteniendo `capture` se rechaza cerrado (antes `validate_audit_binding` +
+  `apply_audit` legado producían `DONE`). Eliminar **todos** los campos bridge
+  produce un artefacto H2 distinto y válido; el host H3 debe usar exclusivamente
+  `apply_audit_from_review` y **no** presentar `apply_audit` legado como
+  equivalente.
+- **`capture` como `evidence_id` cerrado.** La captura se representa en
+  `evidence[]` con `evidence_id == "capture"`, `status == "pass"` y el
+  `capture_digest` de review-evidence. La regla estructural H2 (`OK` exige toda
+  la evidencia en `pass`) sigue valiendo: capture es `pass` y los checks fallidos
+  bloquean `OK`.
+- **Match exacto de evidencia, no subconjunto.** El puente compara la evidencia
+  del audit-result con la derivada desde review-evidence como una firma ordenada
+  `(evidence_id, status, digest)`: así se rechazan checks omitidos, extra o
+  reordenados, y captura omitida o con digest cambiado.
+- **Decisión, autoridad y timestamp inyectados y anti-auto-amplificados.** El
+  audit-result declara `classification`/`decision`/`decision_reference`,
+  `grant_id`/`grant_digest` y `observed_at` (es portable) y debe coincidir con
+  los parámetros externos inyectados por el controlador/mantenedor. Ningún valor
+  autodeclarado amplía autoridad o frescura: el binding re_deriva digests y
+  políticas desde la cadena, no desde el recibo. El grant de la tarjeta es
+  correlación; la autoridad actual llega por parámetro externo.
+- **`apply_audit` sigue siendo la autoridad de transición.** El puente valida
+  todo antes y después delega en la máquina de estados pura H2; no reimplementa
+  la transición.
+
+Riesgos residuales aceptados de Slice5:
+
+- el puente es **stateless**: no persiste la decisión ni el
+  `review_evidence_digest`. Un caller que reincorpore el mismo audit-result con
+  `current_state == REVIEWING` no puede detectarse aquí; la unicidad global
+  exige persistir `(run_id, attempt_id, review_evidence_digest, estado)` fuera;
+- el puente no atestigua la procedencia de la decisión del mantenedor: el
+  binding es evidencia de correlación (audit-result ↔ review-evidence ↔ tarjeta
+  ↔ grant externo), no firma criptográfica. Un host futuro deberá verificar la
+  cadena de autoridad externamente;
+- `review_evidence_digest` opcional permite que un audit-result H2 conviva con
+  uno ligado: el binding del puente exige el campo, pero la sola presencia del
+  campo no prueba que la decisión provenga del mantenedor (sólo la coincidencia
+  con los parámetros externos inyectados);
+- el puente confía en que el caller (controlador) inyecte honestamente
+  `expected_classification`/`expected_decision`/`expected_decision_reference`/
+  `expected_observed_at`/`max_audit_age_seconds`/`expected_grant_id`/
+  `expected_grant_digest`: éstos no se derivan de la evidencia. La separación de
+  funciones (quien audita no es quien ejecutó) es la salvaguarda organizativa, no
+  una garantía del contrato;
+- eliminar **todos** los campos bridge produce un artefacto H2 distinto que el
+  `apply_audit` legado acepta: la bidireccionalidad estructural impide el
+  downgrade de un solo campo, pero no prohíbe que un host use el camino H2. La
+  convención operativa H3 es usar exclusivamente `apply_audit_from_review`.
+
+La evidencia y los riesgos residuales aceptados están en
+[`adversarial-h3-slice5.md`](adversarial-h3-slice5.md). La decisión es
+`proceed` para Slice5. Con Slice1–Slice5 aceptados, H3 queda cerrado; integración
+Git y preparación de release requieren autoridad separada.
+
+
 ### Reproducibilidad del DoD
 
 El intérprete del auditor es el venv editable del worktree principal:
@@ -485,4 +627,22 @@ PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates 
   --max-preflight-age-seconds 600 --max-dispatch-age-seconds 3600 \
   --max-notice-age-seconds 3600 \
   --message-file fixtures/dispatch-message.txt
+PYTHONPATH=src /Users/krisnova/www/aria/epistates/.venv/bin/python -m epistates validate fixtures/audit-result-review-bound.json \
+  --task-card fixtures/task-card-valid.json \
+  --adapter-capabilities fixtures/adapter-capabilities-opencode-tmux.json \
+  --preflight-result fixtures/preflight-result-ok.json \
+  --dispatch-receipt fixtures/dispatch-receipt-ok.json \
+  --human-notice fixtures/human-notice-ok.json \
+  --review-evidence fixtures/review-evidence-ok.json \
+  --run-id run-001 --attempt-id attempt-001 \
+  --expected-session-name epistates-opencode --expected-command idle \
+  --max-preflight-age-seconds 600 --max-dispatch-age-seconds 3600 \
+  --max-notice-age-seconds 3600 \
+  --message-file fixtures/dispatch-message.txt \
+  --expected-classification OK --expected-decision proceed \
+  --expected-decision-reference conversation-2026-08-11 \
+  --expected-observed-at 2026-08-11T19:00:00Z \
+  --max-audit-age-seconds 3600 \
+  --expected-grant-id maintainer-e1-contracts \
+  --expected-grant-digest sha256:24a39dff4b7a38f45959b89850debed2bb584fb4c887278748064ed6f1eda2cd
 ```

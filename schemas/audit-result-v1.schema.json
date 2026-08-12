@@ -24,13 +24,14 @@
     "state_before": {"const": "REVIEWING"},
     "classification": {"enum": ["OK", "PARCIAL", "BLOQ"]},
     "decision": {"enum": ["proceed", "fix-and-retry", "escalate"]},
+    "review_evidence_digest": {"$ref": "#/$defs/digest", "description": "AMPLIACIÓN PRE-RELEASE (Slice5). Liga el audit-result al review-evidence exacto cuando la auditoría se deriva de una inspección. NO es 'version-compatible': un validador v1 anterior a Slice5 rechaza este campo. El validador nuevo acepta artefactos H2 (sin este campo) y artefactos bridge (con él). Bidireccionalmente requerido con exactamente una evidencia 'capture': el validador Python es normativo para esta restricción."},
     "evidence": {
       "type": "array", "minItems": 1, "uniqueItems": true,
       "items": {
         "type": "object", "additionalProperties": false,
         "required": ["evidence_id", "status", "digest"],
         "properties": {
-          "evidence_id": {"enum": ["git_status", "diff_check", "unit_tests", "file_digest"]},
+          "evidence_id": {"enum": ["git_status", "diff_check", "unit_tests", "file_digest", "capture"]},
           "status": {"enum": ["pass", "fail", "missing"]},
           "digest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]}
         },
@@ -41,6 +42,11 @@
       }
     }
   },
+  "allOf": [
+    {"comment": "Bridge bidireccionalidad (Slice5): review_evidence_digest presente exige exactamente una evidencia capture, y viceversa. El validador Python es normativo; este allOf expresa la forma portable."},
+    {"if": {"required": ["review_evidence_digest"]}, "then": {"properties": {"evidence": {"contains": {"properties": {"evidence_id": {"const": "capture"}}}, "minContains": 1, "maxContains": 1}}}},
+    {"if": {"properties": {"evidence": {"contains": {"properties": {"evidence_id": {"const": "capture"}}}}}}, "then": {"required": ["review_evidence_digest"]}}
+  ],
   "oneOf": [
     {"properties": {"classification": {"const": "OK"}, "decision": {"const": "proceed"}, "evidence": {"items": {"properties": {"status": {"const": "pass"}}}}}},
     {"properties": {"classification": {"const": "PARCIAL"}, "decision": {"const": "fix-and-retry"}}},

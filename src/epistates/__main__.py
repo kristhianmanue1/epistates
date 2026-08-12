@@ -7,6 +7,7 @@ from typing import Any, Optional, Sequence
 
 from .adapter import validate_adapter_capabilities
 from .audit import validate_audit_binding, validate_audit_result
+from .audit_review import validate_audit_review_binding
 from .contracts import ValidationError, validate_task_card
 from .dispatch import _MESSAGE_MAX_BYTES, validate_dispatch_receipt, validate_dispatch_receipt_binding
 from .human_notice import validate_human_notice, validate_human_notice_binding
@@ -24,14 +25,24 @@ _VALIDATORS = {
     "epistates/review-evidence/v1": validate_review_evidence,
 }
 
-# Opciones de binding reconocidas por el CLI (todas las schemas).
-_ALL_BINDING_OPTIONS = (
+# Opciones de binding de la cadena de revisión (compartidas por dispatch-receipt,
+# human-notice y review-evidence). El audit-result en modo puente las exige todas.
+_REVIEW_BINDING_OPTIONS = (
     "task_card", "adapter_capabilities", "run_id", "attempt_id",
     "expected_session_name", "expected_command", "message_file",
     "preflight_result", "max_preflight_age_seconds",
     "dispatch_receipt", "human_notice", "max_dispatch_age_seconds",
     "max_notice_age_seconds",
 )
+# Opciones de decisión de auditoría propias del puente review-evidence ->
+# audit-result (Slice5). Sólo aplican al audit-result en modo puente.
+_AUDIT_DECISION_OPTIONS = (
+    "review_evidence", "expected_classification", "expected_decision",
+    "expected_decision_reference", "expected_observed_at",
+    "max_audit_age_seconds", "expected_grant_id", "expected_grant_digest",
+)
+# Todas las opciones de binding reconocidas por el CLI.
+_ALL_BINDING_OPTIONS = _REVIEW_BINDING_OPTIONS + _AUDIT_DECISION_OPTIONS
 
 # Opciones aplicables (y requeridas) por schema de binding.
 _APPLICABLE = {
@@ -51,7 +62,7 @@ _APPLICABLE = {
         "task_card", "adapter_capabilities", "dispatch_receipt", "run_id",
         "attempt_id", "expected_session_name", "max_dispatch_age_seconds",
     }),
-    "epistates/review-evidence/v1": frozenset(_ALL_BINDING_OPTIONS),
+    "epistates/review-evidence/v1": frozenset(_REVIEW_BINDING_OPTIONS),
 }
 
 
@@ -118,6 +129,32 @@ def _require_applicable(schema: str, args) -> None:
         raise ValidationError(f"{schema.split('/')[1]} requiere {rendered}")
 
 
+def _require_audit_review_options(args) -> None:
+    """Exige que toda opción de binding aplique al audit-result en modo puente.
+
+    En modo puente todas las opciones de la cadena de revisión y de decisión de
+    auditoría son aplicables y requeridas. Las opciones inaplicables no aplican
+    aquí (todas lo son); el rechazo de opciones inaplicables a otros schemas se
+    mantiene vía ``_check_applicability``.
+    """
+    applicable = frozenset(_ALL_BINDING_OPTIONS)
+    provided = _provided_binding_options(args)
+    inapplicable = provided - applicable
+    if inapplicable:
+        rendered = ", ".join(
+            "--" + name.replace("_", "-") for name in sorted(inapplicable)
+        )
+        raise ValidationError(
+            f"opciones de binding inaplicables a audit-result: {rendered}"
+        )
+    missing = applicable - provided
+    if missing:
+        rendered = ", ".join(
+            "--" + name.replace("_", "-") for name in sorted(missing)
+        )
+        raise ValidationError(f"audit-result requiere {rendered}")
+
+
 def _parse_number(value: Optional[str], name: str) -> float:
     try:
         return float(value)
@@ -143,6 +180,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     validate.add_argument("--human-notice", type=Path)
     validate.add_argument("--max-dispatch-age-seconds")
     validate.add_argument("--max-notice-age-seconds")
+    validate.add_argument("--review-evidence", type=Path)
+    validate.add_argument("--expected-classification")
+    validate.add_argument("--expected-decision")
+    validate.add_argument("--expected-decision-reference")
+    validate.add_argument("--expected-observed-at")
+    validate.add_argument("--max-audit-age-seconds")
+    validate.add_argument("--expected-grant-id")
+    validate.add_argument("--expected-grant-digest")
     args = parser.parse_args(argv)
     try:
         artifact = _load_json(args.card)
@@ -151,14 +196,58 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         schema = artifact["schema"]
         # Validación estructural propia del schema.
         _VALIDATORS[schema](artifact)
-        # Comprobación de aplicabilidad de opciones (antes del binding).
-        _check_applicability(schema, args)
-        if schema in _APPLICABLE and _APPLICABLE[schema]:
-            _require_applicable(schema, args)
+        # Modo puente del audit-result: cuando lleva ``review_evidence_digest``
+        # se exige el binding completo a review-evidence + decisión inyectada.
+        audit_review_mode = (
+            schema == "epistates/audit-result/v1"
+            and "review_evidence_digest" in artifact
+        )
+        if audit_review_mode:
+            # En modo puente todas las opciones son aplicables y requeridas.
+            _require_audit_review_options(args)
+        else:
+            # Comprobación de aplicabilidad de opciones (antes del binding).
+            _check_applicability(schema, args)
+            if schema in _APPLICABLE and _APPLICABLE[schema]:
+                _require_applicable(schema, args)
         # Binding por schema.
         if schema == "epistates/audit-result/v1":
             task_card = _load_json(args.task_card)
-            validate_audit_binding(artifact, task_card, args.run_id, args.attempt_id)
+            if audit_review_mode:
+                adapter = _load_json(args.adapter_capabilities)
+                preflight_result = _load_json(args.preflight_result)
+                dispatch_receipt = _load_json(args.dispatch_receipt)
+                human_notice = _load_json(args.human_notice)
+                review_evidence = _load_json(args.review_evidence)
+                expected_max_preflight = _parse_number(
+                    args.max_preflight_age_seconds, "--max-preflight-age-seconds"
+                )
+                expected_max_dispatch = _parse_number(
+                    args.max_dispatch_age_seconds, "--max-dispatch-age-seconds"
+                )
+                expected_max_notice = _parse_number(
+                    args.max_notice_age_seconds, "--max-notice-age-seconds"
+                )
+                message = _read_bounded_message(
+                    args.message_file, _MESSAGE_MAX_BYTES
+                ).decode("utf-8")
+                expected_max_audit = _parse_number(
+                    args.max_audit_age_seconds, "--max-audit-age-seconds"
+                )
+                validate_audit_review_binding(
+                    artifact, review_evidence, task_card, adapter,
+                    preflight_result, dispatch_receipt, human_notice,
+                    args.run_id, args.attempt_id,
+                    args.expected_session_name, args.expected_command,
+                    expected_max_preflight, message,
+                    expected_max_dispatch, expected_max_notice,
+                    args.expected_classification, args.expected_decision,
+                    args.expected_decision_reference,
+                    args.expected_observed_at, expected_max_audit,
+                    args.expected_grant_id, args.expected_grant_digest,
+                )
+            else:
+                validate_audit_binding(artifact, task_card, args.run_id, args.attempt_id)
         elif schema == "epistates/preflight-result/v1":
             task_card = _load_json(args.task_card)
             adapter = _load_json(args.adapter_capabilities)

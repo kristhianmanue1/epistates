@@ -480,6 +480,229 @@ class CliNewSchemaInapplicableOptionsTests(unittest.TestCase):
         self.assertIn("inaplicables a dispatch-receipt", output)
 
     def test_review_evidence_rejects_nothing_when_complete(self):
-        # review-evidence admite todas las opciones; no debe rechazar ninguna.
+        # review-evidence admite todas las opciones de la cadena de revisión; no
+        # debe rechazar ninguna. Las opciones de decisión de auditoría sí se
+        # rechazan (no aplican a review-evidence).
         code, output = self.call(*_review_evidence_args())
         self.assertEqual(code, 0)
+
+
+def _audit_review_args():
+    """Argumentos CLI completos para validar audit-result en modo puente."""
+    return [
+        "validate", str(FIXTURES / "audit-result-review-bound.json"),
+        "--task-card", str(FIXTURES / "task-card-valid.json"),
+        "--adapter-capabilities", str(FIXTURES / "adapter-capabilities-opencode-tmux.json"),
+        "--preflight-result", str(FIXTURES / "preflight-result-ok.json"),
+        "--dispatch-receipt", str(FIXTURES / "dispatch-receipt-ok.json"),
+        "--human-notice", str(FIXTURES / "human-notice-ok.json"),
+        "--review-evidence", str(FIXTURES / "review-evidence-ok.json"),
+        "--run-id", "run-001", "--attempt-id", "attempt-001",
+        "--expected-session-name", "epistates-opencode",
+        "--expected-command", "idle",
+        "--max-preflight-age-seconds", "600",
+        "--max-dispatch-age-seconds", "3600",
+        "--max-notice-age-seconds", "3600",
+        "--message-file", str(FIXTURES / "dispatch-message.txt"),
+        "--expected-classification", "OK",
+        "--expected-decision", "proceed",
+        "--expected-decision-reference", "conversation-2026-08-11",
+        "--expected-observed-at", "2026-08-11T19:00:00Z",
+        "--max-audit-age-seconds", "3600",
+        "--expected-grant-id", "maintainer-e1-contracts",
+        "--expected-grant-digest", "sha256:24a39dff4b7a38f45959b89850debed2bb584fb4c887278748064ed6f1eda2cd",
+    ]
+
+
+class CliAuditReviewBridgeTests(unittest.TestCase):
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_audit_review_requires_full_binding(self):
+        code, output = self.call("validate", str(FIXTURES / "audit-result-review-bound.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("audit-result requiere", output)
+        for option in ("--review-evidence", "--expected-classification",
+                       "--expected-decision", "--expected-decision-reference",
+                       "--expected-observed-at", "--max-audit-age-seconds",
+                       "--expected-grant-id", "--expected-grant-digest",
+                       "--human-notice", "--message-file"):
+            self.assertIn(option, output)
+
+    def test_audit_review_binds_valid(self):
+        code, output = self.call(*_audit_review_args())
+        self.assertEqual(code, 0)
+        self.assertIn("VALID", output)
+
+    def test_audit_review_wrong_expected_decision_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("proceed")] = "escalate"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("decision", output)
+
+    def test_audit_review_wrong_expected_classification_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("OK")] = "BLOQ"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("classification", output)
+
+    def test_audit_review_wrong_decision_reference_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("conversation-2026-08-11")] = "other-reference"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("decision_reference", output)
+
+    def test_audit_review_wrong_expected_observed_at_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("2026-08-11T19:00:00Z")] = "2026-08-11T19:01:00Z"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("observed_at", output)
+
+    def test_audit_review_future_observed_at_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("2026-08-11T19:00:00Z")] = "2099-01-01T00:00:00Z"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("observed_at", output)
+
+    def test_audit_review_bad_max_audit_age_is_invalid(self):
+        args = _audit_review_args()
+        idx = args.index("--max-audit-age-seconds")
+        args[idx + 1] = "not-a-number"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("--max-audit-age-seconds debe ser un número", output)
+
+    def test_audit_review_wrong_expected_grant_id_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("maintainer-e1-contracts")] = "other-grant"
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("grant_id", output)
+
+    def test_audit_review_wrong_expected_grant_digest_is_invalid(self):
+        args = _audit_review_args()
+        args[args.index("sha256:24a39dff4b7a38f45959b89850debed2bb584fb4c887278748064ed6f1eda2cd")] = "sha256:" + "0" * 64
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("grant_digest", output)
+
+    def test_audit_review_misbound_review_evidence_is_invalid(self):
+        # review-evidence con digest alterado no liga con el audit-result.
+        ev = json.loads((FIXTURES / "review-evidence-ok.json").read_text("utf-8"))
+        ev["capture_digest"] = "sha256:" + "9" * 64
+        tmp = FIXTURES / "review-evidence-altered.json"
+        tmp.write_text(json.dumps(ev), encoding="utf-8")
+        try:
+            args = _audit_review_args()
+            args[args.index(str(FIXTURES / "review-evidence-ok.json"))] = str(tmp)
+            code, output = self.call(*args)
+        finally:
+            tmp.unlink()
+        self.assertEqual(code, 1)
+
+
+class CliAuditDecisionOptionsInapplicableTests(unittest.TestCase):
+    """Las opciones de decisión de auditoría sólo aplican al audit-result puente."""
+
+    def call(self, *args):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(list(args))
+        return code, output.getvalue()
+
+    def test_h2_audit_result_rejects_review_evidence_option(self):
+        # audit-result H2 (sin review_evidence_digest) no acepta --review-evidence.
+        code, output = self.call(
+            "validate", str(FIXTURES / "audit-result-valid.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--review-evidence", str(FIXTURES / "review-evidence-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a audit-result", output)
+
+    def test_h2_audit_result_rejects_expected_classification_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "audit-result-valid.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-classification", "OK",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a audit-result", output)
+
+    def test_h2_audit_result_rejects_expected_observed_at_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "audit-result-valid.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-observed-at", "2026-08-11T19:00:00Z",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a audit-result", output)
+
+    def test_h2_audit_result_rejects_max_audit_age_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "audit-result-valid.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--max-audit-age-seconds", "3600",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a audit-result", output)
+
+    def test_h2_audit_result_rejects_expected_grant_id_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "audit-result-valid.json"),
+            "--task-card", str(FIXTURES / "task-card-valid.json"),
+            "--run-id", "run-001", "--attempt-id", "attempt-001",
+            "--expected-grant-id", "maintainer-e1-contracts",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a audit-result", output)
+
+    def test_task_card_rejects_review_evidence_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "task-card-valid.json"),
+            "--review-evidence", str(FIXTURES / "review-evidence-ok.json"),
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_task_card_rejects_max_audit_age_option(self):
+        code, output = self.call(
+            "validate", str(FIXTURES / "task-card-valid.json"),
+            "--max-audit-age-seconds", "3600",
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("sólo aplican", output)
+
+    def test_review_evidence_rejects_expected_decision_option(self):
+        # --expected-decision no aplica a review-evidence (sólo al audit-result).
+        args = _review_evidence_args()
+        args += ["--expected-decision", "proceed"]
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a review-evidence", output)
+
+    def test_review_evidence_rejects_review_evidence_option(self):
+        args = _review_evidence_args()
+        args += ["--review-evidence", str(FIXTURES / "review-evidence-ok.json")]
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a review-evidence", output)
+
+    def test_review_evidence_rejects_expected_grant_digest_option(self):
+        args = _review_evidence_args()
+        args += ["--expected-grant-digest", "sha256:" + "0" * 64]
+        code, output = self.call(*args)
+        self.assertEqual(code, 1)
+        self.assertIn("inaplicables a review-evidence", output)

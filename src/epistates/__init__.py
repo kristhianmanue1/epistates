@@ -2,6 +2,11 @@
 
 from .adapter import validate_adapter_capabilities
 from .audit import canonical_digest, validate_audit_binding, validate_audit_result
+from .audit_review import (
+    AuditReviewError,
+    apply_audit_from_review,
+    validate_audit_review_binding,
+)
 from .contracts import ValidationError, validate_task_card
 from .dispatch import (
     DispatchError,
@@ -49,19 +54,21 @@ from .review_runner import (
 from .state import TransitionError, apply_audit, transition
 
 __all__ = [
-    "CaptureOutcome", "CheckOutcome", "DispatchError", "HostObserverError",
-    "HostRunner", "HumanNoticeError", "IndeterminateDispatchError",
-    "IndeterminateReviewError", "LiteralDispatcher", "PaneObservation",
-    "PartialDispatchError", "PreflightError", "PreflightResult",
-    "ProductionHostRunner", "ReviewError", "ReviewRunner",
-    "ReviewRunnerError", "TmuxLiteralDispatcher", "TmuxReviewRunner",
-    "TransitionError", "ValidationError", "apply_audit", "canonical_digest",
-    "dispatch_literal_opencode_tmux", "evaluate_preflight",
-    "observe_opencode_tmux", "review_opencode_tmux", "transition",
-    "validate_adapter_capabilities", "validate_audit_binding",
-    "validate_audit_result", "validate_dispatch_receipt",
-    "validate_dispatch_receipt_binding", "validate_human_notice",
-    "validate_human_notice_binding", "validate_preflight_binding",
-    "validate_preflight_result", "validate_review_evidence",
-    "validate_review_evidence_binding", "validate_task_card",
+    "AuditReviewError", "CaptureOutcome", "CheckOutcome", "DispatchError",
+    "HostObserverError", "HostRunner", "HumanNoticeError",
+    "IndeterminateDispatchError", "IndeterminateReviewError",
+    "LiteralDispatcher", "PaneObservation", "PartialDispatchError",
+    "PreflightError", "PreflightResult", "ProductionHostRunner",
+    "ReviewError", "ReviewRunner", "ReviewRunnerError",
+    "TmuxLiteralDispatcher", "TmuxReviewRunner", "TransitionError",
+    "ValidationError", "apply_audit", "apply_audit_from_review",
+    "canonical_digest", "dispatch_literal_opencode_tmux",
+    "evaluate_preflight", "observe_opencode_tmux", "review_opencode_tmux",
+    "transition", "validate_adapter_capabilities", "validate_audit_binding",
+    "validate_audit_result", "validate_audit_review_binding",
+    "validate_dispatch_receipt", "validate_dispatch_receipt_binding",
+    "validate_human_notice", "validate_human_notice_binding",
+    "validate_preflight_binding", "validate_preflight_result",
+    "validate_review_evidence", "validate_review_evidence_binding",
+    "validate_task_card",
 ]
