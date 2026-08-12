@@ -427,6 +427,6 @@ decisión `PROCEED` y cero hallazgos P0/P1/P2 (véase
 `docs/adversarial-h4-slice3.md`). El gate de cierre H4 y su revisión adversarial
 final C1 terminaron `PASS`/`PROCEED` (2026-08-12), con dos wheels reproducibles,
 smoke aislado, 793 pruebas y cero hallazgos P0/P1/P2. H4 queda cerrado
-localmente. Esta documentación no concede autoridad operativa y la candidata
-`0.1.0a1` sigue **sin publicar**: integración, tag y publicación requieren
-autoridad separada del mantenedor.
+localmente. Esta documentación no concede autoridad operativa. La GitHub
+prerelease `v0.1.0-alpha.1` está publicada con wheel/checksum certificados;
+PyPI permanece sin publicar.

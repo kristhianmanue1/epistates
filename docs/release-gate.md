@@ -1,10 +1,10 @@
 # Release Gate — Epistates
 
-**Corte:** `0.1.0a1` (PEP 440) · **Tag humano candidato:** `v0.1.0-alpha.1`
+**Corte:** `0.1.0a1` (PEP 440) · **Tag publicado:** `v0.1.0-alpha.1`
 · **Fecha de candidata:** 2026-08-11 · **Estado actual:** gate de cierre H4
-local `PASS` y revisión adversarial final C1 `PROCEED` (2026-08-12); commit
-autorizado por separado, con integración y tag/publicación aún pendientes.
-**No publicada.**
+local `PASS` y revisión adversarial final C1 `PROCEED` (2026-08-12); integrada
+en `main` y publicada como GitHub prerelease con wheel/checksum. **PyPI no
+publicado.**
 
 Este documento define el gate documental y ejecutable para una candidata de
 release de Epistates. Cada criterio es verificable localmente sin red. Tag,
@@ -285,7 +285,8 @@ smoke verificó además `importlib.metadata.version("epistates") == "0.1.0a1"` y
 **Fecha:** 2026-08-12. **HEAD:** `128945fae0db9c9134cc55bef0411510f954484c`
 (rama `codex/h4-installable-contracts`). **SOURCE_DATE_EPOCH:** `1786546459`
 (obtenido con `git show -s --format=%ct HEAD`). **Estado RAG: gate H4 local
-PASS.** La candidata `0.1.0a1` sigue **SIN PUBLICAR**.
+PASS.** En el momento de ejecutar este gate, la candidata aún no estaba
+publicada; el estado post-publicación se registra en la cabecera y decisión.
 
 Ejecutado por el ejecutor en el worktree
 `/private/tmp/epistates-h4-installable-contracts`. Builds y venv en copias
@@ -402,6 +403,7 @@ No se afirma sandbox.
 **Gate H4 local PASS y adversarial final C1 `PROCEED`.** Reproducibilidad,
 inventario, instalación aislada, smoke y no-probing verificados; cero hallazgos
 P0/P1/P2. Evidencia adversarial en
-[`adversarial-h4-gate.md`](adversarial-h4-gate.md). La candidata `0.1.0a1`
-**no está publicada**: integración, tag y publicación requieren autoridad
-separada del mantenedor.
+[`adversarial-h4-gate.md`](adversarial-h4-gate.md). La GitHub prerelease
+[`v0.1.0-alpha.1`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1)
+está publicada con el wheel certificado y su checksum. PyPI permanece sin
+publicar por ausencia de credenciales configuradas en el host de publicación.

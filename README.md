@@ -1,9 +1,9 @@
 # Epistates
 
-**Estado:** hitos H1–H3 cerrados · **Madurez:** experimental · **Candidata:**
-`0.1.0a1` (gate local aceptado; no publicada)
-**Versión del paquete (PEP 440):** `0.1.0a1` · **Tag humano candidato:**
-`v0.1.0-alpha.1` (no publicado; pendiente de autorización del mantenedor).
+**Estado:** H1–H4 cerrados localmente · **Madurez:** experimental ·
+**Prerelease GitHub:** `0.1.0a1`
+**Versión del paquete (PEP 440):** `0.1.0a1` · **Tag publicado:**
+[`v0.1.0-alpha.1`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1).
 
 > Actualización 2026-08-11: los hitos H1 (contrato `task-card/v1` y validador
 > read-only), H2 (resultado de auditoría y máquina de estados) y H3 (adaptador
@@ -11,10 +11,14 @@
 > rondas adversariales independientes. La integración Git, el tag y la
 > publicación quedan pendientes de autorización del mantenedor.
 
+> Actualización 2026-08-12: H4 cerró con gate reproducible y revisión
+> adversarial final `PROCEED`; la prerelease GitHub fue publicada con wheel y
+> checksum certificados. PyPI permanece sin publicar.
+
 > **Software experimental.** Epistates es un alpha sin garantías: la API, los
 > contratos y el CLI pueden cambiar sin previo aviso. **No existe versión
-> publicada** hasta que el mantenedor lo autorice; `0.1.0a1` es una candidata
-> local aceptada por el gate adversarial, todavía sin tag ni publicación.
+> estable publicada**; `0.1.0a1` está publicada únicamente como prerelease
+> alpha de GitHub y no implica estabilidad ni compatibilidad futura.
 
 ## Instalación
 

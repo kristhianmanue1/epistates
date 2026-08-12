@@ -1,10 +1,8 @@
 # Plan inicial — E1 contratos y conformidad
 
-**Estado:** H1, H2 y H3 cerrados; Slice1–Slice5 aceptados tras rondas
-adversariales independientes. **Candidata de release `0.1.0a1` aceptada por el
-gate adversarial (2026-08-11): build reproducible, wheel, metadata, instalación
-y CLI verificados; pendiente de commit, integración, tag y autorización de
-publicación; no publicada.** El gate documental está en
+**Estado:** H1–H4 cerrados; gate final C1 `PROCEED`. **Prerelease GitHub
+`v0.1.0-alpha.1` publicada el 2026-08-12** con wheel reproducible y checksum;
+PyPI permanece sin publicar. El gate documental está en
 [`release-gate.md`](release-gate.md).
 **Fecha:** 2026-08-11. **Fuente:** definición fundacional y protocolo técnico
 del piloto.
@@ -583,10 +581,8 @@ Git y preparación de release requieren autoridad separada.
 **Estado:** requerido antes de publicar Epistates como herramienta destinada a
 agentes de IA. Slice1–Slice3 aceptados; **H4 cerrado localmente (2026-08-12)**
 tras gate reproducible y revisión adversarial final C1 con decisión `PROCEED` y
-cero hallazgos P0/P1/P2. La candidata local `0.1.0a1` sigue **SIN PUBLICAR**:
-commit autorizado por separado; integración, tag y publicación conservan
-autoridad separada del mantenedor.
-H1–H3 no se reabren.
+cero hallazgos P0/P1/P2. La prerelease GitHub `v0.1.0-alpha.1` está publicada;
+PyPI permanece sin publicar. H1–H3 no se reabren.
 
 H4 no amplía autoridad ni añade automatización operativa. Su objetivo es que un
 agente pueda descubrir la superficie instalada sin confundir propiedades que
