@@ -578,6 +578,156 @@ La evidencia y los riesgos residuales aceptados están en
 `proceed` para Slice5. Con Slice1–Slice5 aceptados, H3 queda cerrado; integración
 Git y preparación de release requieren autoridad separada.
 
+## H4 — Agent-safe discovery and misuse resistance
+
+**Estado:** requerido antes de publicar Epistates como herramienta destinada a
+agentes de IA. La candidata local `0.1.0a1` permanece en `NO-GO` para ese claim
+hasta cerrar H4 y repetir el gate de release. H1–H3 no se reabren.
+
+H4 no amplía autoridad ni añade automatización operativa. Su objetivo es que un
+agente pueda descubrir la superficie instalada sin confundir propiedades que
+Epistates mantiene separadas:
+
+```text
+descrito != implementado != observado != autorizado
+schema-válido != semánticamente-válido != ligado != ejecutable
+ejemplo != instrucción != grant
+```
+
+Quedan fuera de H4: CLI de dispatch/review/audit, gateway, daemon, watcher,
+polling, autodetección dinámica del host, inicio automático de agentes, MCP,
+sandbox nuevo, atestaciones criptográficas y cualquier efecto real de Git,
+`tmux`, subprocess o red durante descubrimiento.
+
+### H4 — Slice1: descubrimiento estático y clasificación de efectos
+
+**Objetivo.** Añadir una superficie instalada, offline y determinista para que
+humanos y agentes descubran versión, API y fronteras de efectos sin sondear el
+host ni inferir autoridad.
+
+**Contrato.**
+
+- `epistates --version` y `python -m epistates --version` imprimen exactamente la
+  versión single-source y terminan con exit `0`;
+- `epistates describe --format json` emite exactamente un documento JSON con
+  schema versionado `epistates/discovery/v1`, versión del paquete y orden
+  determinista;
+- la salida declara inequívocamente `not_authority`, `not_observed` y
+  `performs_host_probing: false`;
+- las capacidades se describen en planos separados: catálogo conocido,
+  declaración de adaptador, observación del host y grant de tarea. El comando
+  estático sólo puede poblar el catálogo; nunca usa `available`, `effective` o
+  `authorized` como conclusión;
+- cada símbolo de `epistates.__all__` queda contabilizado como metadata, tipo,
+  error u operación. Cada operación declara `effect_class`,
+  `requires_external_authority`, `may_mutate_host`, `retry_safety`,
+  `available_from_cli` y requisitos de plataforma;
+- la clasificación distingue al menos cómputo puro, observación del host,
+  escritura en terminal y ejecución de código del proyecto. Ejecutar
+  `unit_tests` no se describe como read-only: el código del proyecto puede tener
+  efectos;
+- dispatch declara que un resultado indeterminado o parcial no es seguro para
+  reintento automático y que transporte técnico no implica comprensión;
+- `--help` explica `--version`, `describe`, el carácter estático y la frontera
+  de autoridad;
+- una guía de integración para agentes documenta la misma taxonomía y contiene
+  una tabla completa de efectos de la API pública.
+
+**DoD ejecutable.**
+
+- pruebas unitarias demuestran cobertura completa de `__all__`, enums cerrados,
+  IDs únicos y ausencia de conclusiones autoritativas;
+- dos invocaciones de `describe` producen bytes idénticos y la salida permanece
+  igual con locale y zona horaria distintos;
+- tests parchean `subprocess`, sockets y acceso de red para fallar si `--help`,
+  `--version` o `describe` intentan efectos o probing;
+- `PYTHONPATH=src python -m epistates --version` termina `0`;
+- `PYTHONPATH=src python -m epistates describe --format json` termina `0`, su
+  stdout es un único JSON y stderr queda vacío;
+- la salida textual existente de `validate` conserva compatibilidad;
+- `python -m unittest discover -s tests -p 'test_*.py'` termina con exit `0`;
+- `git diff --check` termina con exit `0`;
+- una ronda adversarial fresca termina en `proceed` antes de integrar.
+
+Estado de Slice1: implementado en `src/epistates/discovery.py` (documento
+estático `epistates/discovery/v1`), CLI `--version` y `describe --format json`,
+tests en `tests/test_discovery.py` y guía en
+[`agent-integration.md`](agent-integration.md). Tras la ronda adversarial C1
+(decisión FIX-AND-RETRY) se corrigió: separación de pureza técnica de autoridad
+requerida (`apply_audit`/`apply_audit_from_review` y todo contacto con host
+requieren autoridad), clase `filesystem_read` para distinguir el wrapper CLI
+`validate` de los validadores Python puros, `cli_exposure` que reemplaza a
+`available_from_cli`, metadata por método en runners/protocols, capabilities
+canónicas desde fuente compartida con el validador, plano conservador de
+implementación (`descrito != implementado != observado != autorizado`),
+declaración de requisitos de runtime (Python>=3.9, executables/plataformas),
+robustez de salida (ASCII-escapado, sanitización de LF/ESC/ANSI en argv) y
+`validate --help` con matriz de aplicabilidad. Tras la ronda adversarial C2
+(decisión FIX-AND-RETRY) se corrigió: aislamiento total del documento
+(`copy.deepcopy`, test de mutación agresiva), `authority_provenance`
+(`task-card.authority` es solo correlación; la autoridad vigente llega de un
+control-plane externo; Epistates no autentica grants), metadata cerrada
+`authority_enforcement` (`not_required`/`external_control_plane`/
+`caller_responsibility`), `transition` coherente con `apply_audit*` (propuesta;
+aplicarla es responsabilidad del caller), `cli_surface` con effect/autoridad/
+mutación/retry por entrada, fuente canónica pública `epistates.capabilities`
+(reutilizada por `adapter` y `discovery`) con descriptores por capability,
+`help=` individual en las 21 opciones + artefacto, matriz bridge con conjunto
+completo explícito, sanitización de toda la categoría Unicode Cc (C0+DEL+C1,
+U+0085/U+009B), eliminación de la mutación de streams del caller en `main()` y
+`cli_exposure` `library_only` serializa `subcommand: null`. La corrección C3
+cerró además la
+mutabilidad del catálogo mediante un accessor con copias frescas, declaró con
+honestidad que las capabilities no son gates de runtime en Slice1, separó
+binding/correlación de autenticación, fijó el ancho del formatter sin consultar
+el terminal y distinguió uniones informativas de executables de los requisitos
+exactos por método. La revisión adversarial fresca C3 concluyó `PROCEED`, con
+cero hallazgos materiales, 55 pruebas focales y 634 pruebas completas verdes.
+H4 Slice1 queda aceptado; H4 completo permanece abierto.
+
+### H4 — Slice2: validación machine-readable e input hardening
+
+**Objetivo.** Hacer que la validación sea consumible por agentes y resistente a
+entradas no confiables sin convertir validez en autoridad.
+
+**Contrato resumido.** `validate --format json` separa validez estructural,
+semántica y de binding; fija `provenance_verified: false`,
+`authority_status: external_unverified` y `authorized_to_execute: false`; stdout
+contiene un único JSON escapado y determinista; los exits `0`, `1` y `2`
+distinguen éxito contractual, entrada inválida y uso incorrecto. Mantiene el
+modo textual por compatibilidad y publica una taxonomía estable de errores.
+
+La carga acepta sólo archivos regulares, limita bytes mediante lectura
+`limit + 1`, rechaza FIFO/socket/dispositivo/directorio y falla cerrado ante
+JSON profundo, `RecursionError`, claves duplicadas, UTF-8 inválido y cambios
+ambiguos de entrada. Rutas con LF, ANSI o Unicode hostil nunca contaminan salida
+machine-readable. Ninguna respuesta de validación concede autoridad.
+
+### H4 — Slice3: contratos y onboarding instalables
+
+**Objetivo.** Distribuir contratos y ejemplos seguros sin crear dos fuentes
+normativas ni efectos ocultos.
+
+**Contrato resumido.** Se establece una fuente canónica para los schemas, se
+corrigen divergencias schema↔Python, se empaquetan con digest exacto y se
+exponen mediante `schema list/show`. Cada schema se identifica como
+`structural_only`, nombra el validador Python normativo, declara bindings
+externos y nunca descarga su `$id`. El wheel incluye una guía para agentes, un
+artefacto mínimo y un walkthrough con runners falsos; ejemplos, docs y schemas
+declaran que no son instrucciones ni grants y se prueban con subprocess/socket
+bloqueados.
+
+### Gate de cierre H4
+
+El gate construye dos wheels idénticos, instala uno en un venv limpio y prueba
+desde un directorio vacío sin `PYTHONPATH`, Git ni `tmux`: versión, ayuda,
+manifest determinista, schemas, ejemplo, stdout JSON puro, exits `0/1/2`,
+invariancia de locale/zona horaria, ausencia de subprocess/red, paridad de
+recursos y suite completa. Incluye ataques de autoridad autodeclarada,
+inflación de capacidades, archivo enorme/FIFO/JSON profundo, terminal injection,
+version skew y divergencia schema↔validador. Una revisión adversarial fresca es
+obligatoria antes de volver a decidir el release.
+
 
 ### Reproducibilidad del DoD
 

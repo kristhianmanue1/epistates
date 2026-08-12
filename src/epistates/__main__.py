@@ -1,15 +1,40 @@
-"""CLI read-only para validar contratos de Epistates."""
+"""CLI para validar contratos y descubrir la superficie de Epistates.
+
+Carácter estático vs. I/O:
+
+- ``--version``, ``--help`` y ``describe --format json`` son estáticos: no
+  ejecutan subprocess, no abren sockets, no leen el reloj ni sondean el host.
+- ``validate`` hace I/O de filesystem (lee archivos JSON del disco) pero no
+  inicia adaptadores ni resuelve checks. La validez de un artefacto no
+  constituye autorización.
+
+Superficie:
+
+- ``epistates --version``: versión single-source del paquete (exit 0).
+- ``epistates validate <artifact> [--binding ...]``: valida artefacto + binding.
+- ``epistates describe --format json``: documento estático
+  ``epistates/discovery/v1`` (un único JSON determinista en stdout, stderr
+  vacío, ASCII-escapado y robusto ante locale/encoding).
+
+No existe CLI operativo para observe/dispatch/review/audit: esas operaciones
+requieren autoridad externa y runners inyectados, y quedan fuera del alcance
+estático de descubrimiento.
+"""
 
 import argparse
 import json
+import re
+import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+from ._version import __version__
 from .adapter import validate_adapter_capabilities
 from .audit import validate_audit_binding, validate_audit_result
 from .audit_review import validate_audit_review_binding
 from .contracts import ValidationError, validate_task_card
 from .dispatch import _MESSAGE_MAX_BYTES, validate_dispatch_receipt, validate_dispatch_receipt_binding
+from .discovery import render_discovery_json
 from .human_notice import validate_human_notice, validate_human_notice_binding
 from .preflight import validate_preflight_binding, validate_preflight_result
 from .review import validate_review_evidence, validate_review_evidence_binding
@@ -162,33 +187,262 @@ def _parse_number(value: Optional[str], name: str) -> float:
         raise ValidationError(f"{name} debe ser un número")
 
 
+# ---------------------------------------------------------------------------
+# Sanitización de errores argparse: argv con cualquier Unicode Cc no contamina.
+# ---------------------------------------------------------------------------
+
+# Categoría Unicode Cc completa: C0 (U+0000–U+001F), DEL (U+007F) y C1
+# (U+0080–U+009F), incluidos NEL (U+0085) y CSI (U+009B).
+_CONTROL_CHAR = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _escape_control_chars(value: str) -> str:
+    """Reemplaza cualquier carácter de control (Unicode Cc) por forma visible.
+
+    Cubre C0 (LF/CR/TAB/NUL/ESC...), DEL y C1 (U+0080–U+009F, incluidos
+    U+0085/NEL y U+009B/CSI). Evita que argv hostil se refleje crudo en mensajes
+    de argparse (inyección de terminal/log). ``argparse`` aplica ``repr`` a
+    algunas partes (p. ej. ``invalid choice``) pero no a todas (p. ej.
+    ``unrecognized arguments`` hace un join crudo); esta función cubre ambos.
+    """
+    def _replace(match: "re.Match[str]") -> str:
+        return repr(match.group())[1:-1]
+
+    return _CONTROL_CHAR.sub(_replace, value)
+
+
+class _SafeArgumentParser(argparse.ArgumentParser):
+    """Parser que sanea argv reflejado en errores antes de imprimir a stderr."""
+
+    def error(self, message: str):  # type: ignore[override]
+        super().error(_escape_control_chars(message))
+
+
+class _FixedWidthHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Formatter determinista que nunca consulta el terminal del host."""
+
+    def __init__(self, prog: str) -> None:
+        super().__init__(prog, width=100, max_help_position=32)
+
+
+# ---------------------------------------------------------------------------
+# Matriz de aplicabilidad de ``validate`` (fuente compartida con _APPLICABLE).
+# ---------------------------------------------------------------------------
+
+_SCHEMA_LABELS = {
+    "epistates/task-card/v1": "task-card/v1",
+    "epistates/adapter-capabilities/v1": "adapter-capabilities/v1",
+    "epistates/audit-result/v1": "audit-result/v1 (H2)",
+    "epistates/preflight-result/v1": "preflight-result/v1",
+    "epistates/dispatch-receipt/v1": "dispatch-receipt/v1",
+    "epistates/human-notice/v1": "human-notice/v1",
+    "epistates/review-evidence/v1": "review-evidence/v1",
+}
+
+
+def _flag(name: str) -> str:
+    return "--" + name.replace("_", "-")
+
+
+def _format_applicability_matrix() -> str:
+    """Genera la matriz de opciones requeridas por schema para ``validate --help``."""
+    lines = []
+    lines.append("Opciones de binding requeridas por schema:")
+    order = [
+        "epistates/task-card/v1",
+        "epistates/adapter-capabilities/v1",
+        "epistates/audit-result/v1",
+        "epistates/preflight-result/v1",
+        "epistates/dispatch-receipt/v1",
+        "epistates/human-notice/v1",
+        "epistates/review-evidence/v1",
+    ]
+    for schema in order:
+        applicable = _APPLICABLE.get(schema, frozenset())
+        flags = " ".join(_flag(n) for n in sorted(applicable))
+        label = _SCHEMA_LABELS[schema]
+        lines.append(f"  {label:<32}: {flags or '(sin opciones de binding)'}")
+    lines.append("")
+    lines.append(
+        "audit-result/v1 en modo bridge (campo 'review_evidence_digest' "
+        "presente) requiere el conjunto COMPLETO de opciones de binding:"
+    )
+    # Set explícito y completo: cadena de revisión + decisión/autoridad.
+    bridge_all = list(_REVIEW_BINDING_OPTIONS) + list(_AUDIT_DECISION_OPTIONS)
+    lines.append("  " + " ".join(_flag(n) for n in bridge_all))
+    lines.append("")
+    lines.append(
+        "Toda opcion de binding inaplicable al schema se rechaza (no se "
+        "ignora). Un valor invalido termina exit 1; un uso incorrecto exit 2."
+    )
+    return "\n".join(lines)
+
+
+def _build_parser() -> "_SafeArgumentParser":
+    """Construye el parser con ayuda, --version, validate y describe.
+
+    Usa ``_SafeArgumentParser`` (sanitiza argv en errores) y ``parser_class``
+    para que los subparsers hereden el mismo comportamiento.
+    """
+    parser = _SafeArgumentParser(
+        prog="epistates",
+        description=(
+            "Epistates: supervisor contractual de agentes externos.\n"
+            "Caracter: --version/--help/describe son estaticos (no sondean el "
+            "host); validate hace I/O de filesystem pero no inicia adaptadores.\n"
+            "La validez de un artefacto no es autorizacion; el descubrimiento "
+            "no concluye disponibilidad, vigencia o autorizacion."
+        ),
+        epilog=(
+            "Frontera de confianza: descrito != implementado != observado != "
+            "autorizado. Use 'describe --format json' para la superficie "
+            "instalada y 'validate' para validar contratos."
+        ),
+        formatter_class=_FixedWidthHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
+        help="Imprime la version single-source del paquete y termina (exit 0).",
+    )
+    subparsers = parser.add_subparsers(
+        dest="command", required=True, parser_class=_SafeArgumentParser
+    )
+
+    validate = subparsers.add_parser(
+        "validate",
+        help="validar un artefacto sin ejecutar checks ni iniciar adaptadores",
+        description=(
+            "Valida un artefacto y, segun el schema, su binding completo, sin "
+            "resolver checks ni iniciar procesos externos. Hace I/O de "
+            "filesystem al leer los archivos. La validez no constituye "
+            "autorizacion."
+        ),
+        epilog=_format_applicability_matrix(),
+        formatter_class=_FixedWidthHelpFormatter,
+    )
+    validate.add_argument(
+        "card", type=Path, metavar="artifact",
+        help="Artefacto a validar (JSON con campo 'schema'); se lee de disco.",
+    )
+    validate.add_argument(
+        "--task-card", type=Path,
+        help="Path a la tarjeta task-card/v1 para binding (JSON).",
+    )
+    validate.add_argument(
+        "--adapter-capabilities", type=Path,
+        help="Path a adapter-capabilities/v1 para binding (JSON).",
+    )
+    validate.add_argument(
+        "--run-id",
+        help="Run id esperado para binding (catalogo [a-z][a-z0-9-]{2,63}).",
+    )
+    validate.add_argument(
+        "--attempt-id",
+        help="Attempt id esperado para binding (catalogo [a-z][a-z0-9-]{2,63}).",
+    )
+    validate.add_argument(
+        "--expected-session-name",
+        help="Nombre de sesion tmux esperado (identificador cerrado).",
+    )
+    validate.add_argument(
+        "--expected-command",
+        help="Comando esperado en el pane observado (p. ej. 'idle').",
+    )
+    validate.add_argument(
+        "--message-file", type=Path,
+        help="Path al mensaje literal entregado (UTF-8 crudo, lectura acotada).",
+    )
+    validate.add_argument(
+        "--preflight-result", type=Path,
+        help="Path a preflight-result/v1 para binding (JSON).",
+    )
+    validate.add_argument(
+        "--max-preflight-age-seconds",
+        help="Politica externa de frescura preflight->dispatch en segundos (0,3600].",
+    )
+    validate.add_argument(
+        "--dispatch-receipt", type=Path,
+        help="Path a dispatch-receipt/v1 para binding (JSON).",
+    )
+    validate.add_argument(
+        "--human-notice", type=Path,
+        help="Path a human-notice/v1 para binding (JSON).",
+    )
+    validate.add_argument(
+        "--max-dispatch-age-seconds",
+        help="Politica externa de frescura dispatch->notice en segundos (0,7200].",
+    )
+    validate.add_argument(
+        "--max-notice-age-seconds",
+        help="Politica externa de frescura notice->review en segundos (0,7200].",
+    )
+    validate.add_argument(
+        "--review-evidence", type=Path,
+        help="Path a review-evidence/v1 para binding (JSON; audit bridge).",
+    )
+    validate.add_argument(
+        "--expected-classification",
+        help="Clasificacion inyectada esperada (audit bridge): OK|PARCIAL|BLOQ.",
+    )
+    validate.add_argument(
+        "--expected-decision",
+        help="Decision inyectada esperada (audit bridge): proceed|fix-and-retry|escalate.",
+    )
+    validate.add_argument(
+        "--expected-decision-reference",
+        help="Referencia de decision externa inyectada (audit bridge).",
+    )
+    validate.add_argument(
+        "--expected-observed-at",
+        help="Timestamp observado esperado inyectado (audit bridge; RFC3339 UTC Z).",
+    )
+    validate.add_argument(
+        "--max-audit-age-seconds",
+        help="Politica externa de frescura review->audit en segundos (0,7200].",
+    )
+    validate.add_argument(
+        "--expected-grant-id",
+        help=("Grant id inyectado por el control-plane externo (audit bridge); "
+              "la coincidencia con la tarjeta solo liga correlacion."),
+    )
+    validate.add_argument(
+        "--expected-grant-digest",
+        help=("Grant digest inyectado por el control-plane externo (audit bridge); "
+              "ligarlo al authority de la tarjeta NO autentica el grant."),
+    )
+
+    describe = subparsers.add_parser(
+        "describe",
+        help="emitir el documento de descubrimiento estatico (epistates/discovery/v1)",
+        description=(
+            "Emite exactamente un documento JSON con schema "
+            "epistates/discovery/v1. Estatico, offline y determinista: no "
+            "sondea el host, ASCII-escapado y estable ante locale/encoding."
+        ),
+        formatter_class=_FixedWidthHelpFormatter,
+    )
+    describe.add_argument(
+        "--format",
+        choices=["json"],
+        required=True,
+        help="Formato de salida. En este corte solo se soporta 'json'.",
+    )
+    return parser
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="epistates")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    validate = subparsers.add_parser("validate", help="validar un artefacto sin ejecutar checks")
-    validate.add_argument("card", type=Path, metavar="artifact")
-    validate.add_argument("--task-card", type=Path)
-    validate.add_argument("--adapter-capabilities", type=Path)
-    validate.add_argument("--run-id")
-    validate.add_argument("--attempt-id")
-    validate.add_argument("--expected-session-name")
-    validate.add_argument("--expected-command")
-    validate.add_argument("--message-file", type=Path)
-    validate.add_argument("--preflight-result", type=Path)
-    validate.add_argument("--max-preflight-age-seconds")
-    validate.add_argument("--dispatch-receipt", type=Path)
-    validate.add_argument("--human-notice", type=Path)
-    validate.add_argument("--max-dispatch-age-seconds")
-    validate.add_argument("--max-notice-age-seconds")
-    validate.add_argument("--review-evidence", type=Path)
-    validate.add_argument("--expected-classification")
-    validate.add_argument("--expected-decision")
-    validate.add_argument("--expected-decision-reference")
-    validate.add_argument("--expected-observed-at")
-    validate.add_argument("--max-audit-age-seconds")
-    validate.add_argument("--expected-grant-id")
-    validate.add_argument("--expected-grant-digest")
+    # ``main`` NO muta los streams del caller (encoding/errors). La salida
+    # estatica (--version/--help/describe) es ASCII y robusta bajo cualquier
+    # locale/encoding; describe se serializa ASCII-escapado. El saneamiento y
+    # JSON estable de la salida textual de validate queda reservado a Slice2.
+    parser = _build_parser()
     args = parser.parse_args(argv)
+    if args.command == "describe":
+        # Estatico y determinista: stdout = unico JSON ASCII, stderr vacio.
+        sys.stdout.write(render_discovery_json())
+        return 0
     try:
         artifact = _load_json(args.card)
         if not isinstance(artifact, dict) or artifact.get("schema") not in _VALIDATORS:

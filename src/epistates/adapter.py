@@ -9,6 +9,7 @@ cerrados y el enum de plataformas, no el nombre del ``adapter_id``: un valor com
 import re
 from typing import Any, Mapping
 
+from .capabilities import CAPABILITY_IDS
 from .contracts import ValidationError
 
 
@@ -17,7 +18,8 @@ _ADAPTER_FIELDS = frozenset({
 })
 _ADAPTER_ID_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,63}")
 _PLATFORMS = frozenset({"darwin", "linux"})
-_CAPABILITY_IDS = frozenset({"dispatch_literal", "observe_session", "capture_once"})
+# IDs canonicos desde la fuente neutral publica ``epistates.capabilities``.
+_CAPABILITY_IDS = CAPABILITY_IDS
 
 
 def _require_nonempty_str(value: Any, field: str) -> None:

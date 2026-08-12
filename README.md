@@ -40,11 +40,25 @@ repositorio, no API distribuida. Los validadores son Python puro y no leen los
 
 ## Quickstart CLI
 
-El CLI es read-only: valida un artefacto sin resolver checks ni iniciar
-procesos externos. Desde un venv donde el wheel esté instalado:
+Carácter del CLI:
+
+- `--version`, `--help` y `describe --format json` son **estáticos**: no sondean
+  el host, no abren sockets, no inician procesos externos y no leen el reloj.
+- `validate` hace **I/O de filesystem** (lee los artefactos JSON del disco), pero
+  no inicia adaptadores ni resuelve checks.
+
+La validez de un artefacto no constituye autorización. Desde un venv donde el
+wheel esté instalado:
 
 ```bash
-# validar una tarjeta (artefacto minimal, no requiere fixtures del repo)
+# versión single-source del paquete (exit 0)
+epistates --version
+
+# descubrimiento estático: un único JSON determinista y ASCII-escapado
+# (epistates/discovery/v1), estable ante locale/encoding/TZ
+epistates describe --format json
+
+# validar una tarjeta (lectura de filesystem; artefacto minimal)
 epistates validate path/to/task-card.json
 
 # equivalente vía módulo
@@ -57,6 +71,10 @@ Para desarrollo local sin instalar (liga las fuentes del checkout):
 PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
 PYTHONPATH=src python -m epistates validate fixtures/task-card-valid.json
 ```
+
+`describe --format json` emite la superficie instalada con la taxonomía de
+efectos, la frontera de confianza y los requisitos de runtime. La guía para
+agentes está en [`docs/agent-integration.md`](docs/agent-integration.md).
 
 El validador sólo inspecciona JSON: los `check_id` son identificadores de un
 catálogo confiable, no comandos declarados por la tarjeta, y el validador nunca

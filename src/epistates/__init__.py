@@ -10,6 +10,7 @@ from .audit_review import (
     validate_audit_review_binding,
 )
 from .contracts import ValidationError, validate_task_card
+from .discovery import build_discovery_document
 from .dispatch import (
     DispatchError,
     IndeterminateDispatchError,
@@ -64,9 +65,10 @@ __all__ = [
     "ReviewError", "ReviewRunner", "ReviewRunnerError",
     "TmuxLiteralDispatcher", "TmuxReviewRunner", "TransitionError",
     "ValidationError", "__version__", "apply_audit", "apply_audit_from_review",
-    "canonical_digest", "dispatch_literal_opencode_tmux",
-    "evaluate_preflight", "observe_opencode_tmux", "review_opencode_tmux",
-    "transition", "validate_adapter_capabilities", "validate_audit_binding",
+    "build_discovery_document", "canonical_digest",
+    "dispatch_literal_opencode_tmux", "evaluate_preflight",
+    "observe_opencode_tmux", "review_opencode_tmux", "transition",
+    "validate_adapter_capabilities", "validate_audit_binding",
     "validate_audit_result", "validate_audit_review_binding",
     "validate_dispatch_receipt", "validate_dispatch_receipt_binding",
     "validate_human_notice", "validate_human_notice_binding",

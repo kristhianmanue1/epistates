@@ -1,9 +1,14 @@
-"""Runner read-only inyectable para la inspección post-ejecución.
+"""Runner inyectable para la inspección post-ejecución.
 
 Frontera **separada** del ``HostRunner`` (observación) y del ``LiteralDispatcher``
 (escritura). Expone operaciones cerradas: una única captura ``capture-pane``
 acotada y checks resueltos desde un catálogo confiable. Ninguna operación acepta
 argv del caller: cada una construye su propio argv exacto y valida sus entradas.
+
+**No es read-only como conjunto:** ``capture_once`` y los checks de Git
+(``git_status``, ``diff_check``) son read-only, pero ``run_check("unit_tests")``
+**ejecuta código del proyecto** (``project_code_execution``) y puede mutar el
+host. Por eso el runner publica metadata por método, no un effect_class único.
 
 Disciplina de subprocess (producción)
 -------------------------------------
@@ -65,7 +70,11 @@ from .host_runner import HostObserverError, validate_session_name, validate_work
 
 
 class ReviewRunnerError(ValueError):
-    """La inspección read-only no pudo completarse de forma verificable."""
+    """La inspección no pudo completarse de forma verificable.
+
+    Puede involucrar ejecución de código del proyecto (``unit_tests``); no es
+    necesariamente un fallo read-only.
+    """
 
 
 class IndeterminateReviewError(ValueError):
@@ -119,9 +128,11 @@ class CheckOutcome(NamedTuple):
 
 
 class ReviewRunner(Protocol):
-    """Contrato del runner de inspección inyectable y read-only.
+    """Contrato del runner de inspección inyectable.
 
-    Las operaciones son cerradas: ninguna acepta argv del caller. Una
+    No es read-only como conjunto: ``capture_once`` y los checks de Git sí lo
+    son, pero ``run_check("unit_tests")`` ejecuta código del proyecto. Las
+    operaciones son cerradas: ninguna acepta argv del caller. Una
     implementación de producción usa ``subprocess`` (capture-pane + checks); los
     tests inyectan un fake determinista que registra las llamadas.
     """

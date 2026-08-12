@@ -18,7 +18,8 @@ legado de H2 **no** es equivalente y no cierra la cadena review-evidence.
 Separación de responsabilidades
 -------------------------------
 
-- ``review`` inspecciona (read-only) y produce ``review-evidence/v1``.
+- ``review`` inspecciona y produce ``review-evidence/v1`` (la inspección no es
+  read-only: ``run_check("unit_tests")`` ejecuta código del proyecto).
 - ``audit`` valida la forma y el binding H2 de ``audit-result/v1``.
 - Este módulo **liga** el audit-result al review-evidence exacto y aplica la
   transición. Reutiliza los validadores existentes; no duplica reglas.
