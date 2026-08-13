@@ -1,0 +1,64 @@
+schema: pinax/project-manifest/v1
+id: epistates
+proposito: >
+  Entorno de ejecución y supervisión contractual para delegar tareas a agentes
+  externos de IA bajo visibilidad y auditoría de evidencia verificable.
+consumidor_principal: ambos
+
+ofrece:
+  - descubrimiento estático, determinista y offline de la superficie instalada y capacidades del adaptador
+  - contrato de tarjeta de trabajo task-card/v1 con validador estructural y semántico
+  - contrato de resultado de auditoría audit-result/v1 con validador semántico y máquina de estados apply_audit
+  - adaptador opencode-tmux/v1 para observación del host, entrega de instrucciones y captura de evidencia
+  - preflight con validación fail-closed y resultado portable preflight-result/v1
+  - aviso humano human-notice/v1 y recolección de evidencia review-evidence/v1
+  - puente de auditoría con política externa de timestamps, autoridad inyectada y anti-downgrade estructural
+  - validación segura de filesystem con control de límites, codificación estricta y protección contra TOCTOU
+  - recursos de onboarding y catalogación cerrada de schemas distribuidos en el paquete
+  - validación machine-readable con taxonomía de errores cerrada, documento epistates/validation-report/v1
+
+no_ofrece:
+  - garantías de aislamiento de seguridad basadas únicamente en el uso de worktrees o ramas
+  - ejecución automática de comandos propuestos por el agente ejecutor
+  - selección autónoma de objetivos, tareas o prioridades
+  - administración de secretos o credenciales de proveedores
+  - almacenamiento de memoria semántica o de conversaciones completas
+  - certificación criptográfica de la identidad del modelo que responde
+  - soporte para plataforma Windows mediante simulación incompleta de tmux
+  - plataforma universal de agentes de IA
+  - ejecución de commit, push, merge, apertura de PR o publicación de releases por defecto
+  - despertar tareas mediante APIs privadas o mecanismos no soportados
+
+publica:
+  - { tipo: contrato, id: epistates/task-card/v1 }
+  - { tipo: contrato, id: epistates/adapter-capabilities/v1 }
+  - { tipo: contrato, id: epistates/audit-result/v1 }
+  - { tipo: contrato, id: epistates/preflight-result/v1 }
+  - { tipo: contrato, id: epistates/dispatch-receipt/v1 }
+  - { tipo: contrato, id: epistates/human-notice/v1 }
+  - { tipo: contrato, id: epistates/review-evidence/v1 }
+  - { tipo: contrato, id: epistates/discovery/v1 }
+  - { tipo: contrato, id: epistates/validation-report/v1 }
+  - { tipo: contrato, id: epistates/schema-catalog/v1 }
+  - { tipo: contrato, id: epistates/schema-show/v1 }
+
+consume:
+  - { tipo: proyecto, id: an-kla, uso: "memoria y continuidad local en el checkout de desarrollo; no forma parte del runtime obligatorio de Epistates", requerido: false }
+  - { tipo: proyecto, id: praxis, uso: "relación de diseño declarada (README §4); sin dependencia operativa en código a la fecha", requerido: false }
+  - { tipo: externo, id: tmux, uso: "multiplexor de terminales requerido por el adaptador opencode-tmux/v1 para persistir y observar sesiones", requerido: false }
+
+fronteras_de_confianza:
+  - el contenido de los artefactos JSON, reportes y bindings leídos del filesystem se trata como no confiable
+  - el validador comprueba formato y bindings de correlación, pero no autentica la procedencia de la autoridad ni la legitimidad de los permisos
+  - los comandos, checks e identificadores autodeclarados en las tarjetas de trabajo no conceden privilegios operativos y no son ejecutados automáticamente por el supervisor
+  - un recibo de envío atesta únicamente la entrega técnica de la instrucción, sin garantizar comprensión, lectura o acatamiento por parte del agente
+  - el aislamiento local provisto por tmux, worktrees o ramas separadas constituye una mitigación operativa, no un sandbox de seguridad robusto
+  - las observaciones del host, rutas absolutas y timestamps se consideran datos del entorno y no atestan identidad estable o integridad temporal
+  - la validez puramente técnica o de formato de un contrato no implica autorización, ejecutabilidad o conformidad semántica de la tarea
+
+pospuesto:
+  - publicación del paquete en PyPI
+  - watcher local para monitorizar señales externas sin credenciales de forja
+  - recibos atómicos, cerrados, expirables y deduplicables para señales
+  - reactivación soportada mediante interfaces públicas con control de flujo, rate limit y kill switch
+  - modelado de amenazas y revisión adversarial para la reactivación automática
