@@ -59,7 +59,9 @@ TAREA EPI-E3-001-C — revisión adversarial de E3a
   Consume: implementación y fixtures de EPI-E3-001-B.
   Produce: dictamen independiente `proceed`, `fix-and-retry` o `escalate`.
   Debe atacar replay, doble consumo, crash/restart, TTL/reloj, identidad cruzada,
-    flood, corrupción y kill switch.
+  flood, corrupción y kill switch.
+  Resultado: [proceed](../adversarial-e3a-receipt-store.md) tras corregir
+  colisiones, estado cruzado, replay tras restart y digest adulterado.
 
 TAREA EPI-E3-001-D — watcher de mínimo privilegio (E3b)
   Requiere: aceptación de E3a, contrato de fuente permitido y tarea separada.
