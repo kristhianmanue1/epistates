@@ -58,7 +58,5 @@ fronteras_de_confianza:
 
 pospuesto:
   - publicación del paquete en PyPI
-  - watcher local para monitorizar señales externas sin credenciales de forja
-  - recibos atómicos, cerrados, expirables y deduplicables para señales
   - reactivación soportada mediante interfaces públicas con control de flujo, rate limit y kill switch
   - modelado de amenazas y revisión adversarial para la reactivación automática

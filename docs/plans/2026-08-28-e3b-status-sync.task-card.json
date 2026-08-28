@@ -1,0 +1,40 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e3b-status-sync",
+  "objective": "Sincronizar el manifiesto del proyecto con el cierre aceptado de E3b, sin modificar runtime ni iniciar E4.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "bd953f0d3e399bb6d1a180a67c4c2ca50fb5ac48",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "documenter",
+  "authority": {
+    "grant_id": "maintainer-e3b-status-sync",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "project-manifest.yaml",
+    "docs/plans/2026-08-28-e3b-status-sync.task-card.json"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": ["commit", "push", "open_pr", "merge", "release", "install_dependencies", "change_scope", "git_reset", "create_branch", "delete_branch", "create_worktree", "remove_worktree"],
+  "inputs": [
+    "docs/plans/2026-08-28-e3-senal-local.md",
+    "docs/adversarial-e3b-kqueue.md",
+    "docs/architecture/0006-adaptador-kqueue-local.md"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0"},
+    {"check_id": "diff_check", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Manifiesto sin pendientes ya cerrados de E3b y tarjeta válida; detenerse sin runtime, E4 ni operaciones Git protegidas.",
+  "stop_condition": "Detenerse ante cambio de contratos públicos, runtime, release o diseño de E4.",
+  "new_decision_required_for": ["E4", "reactivación", "wake", "release", "cambio de contratos o runtime"]
+}
