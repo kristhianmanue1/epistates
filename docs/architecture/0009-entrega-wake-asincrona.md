@@ -71,6 +71,9 @@ marca `ambiguous`. Nunca reenvía durante reconciliación.
 - `DeliveryLedgerStore` implementa el ledger interno SQLite y conserva cada
   transición en un historial append-only dentro de la misma transacción que el
   cambio CAS. No se exporta aún desde la API raíz del paquete.
+- `WakeDeliveryCoordinator` puede crear la reserva de cuota y el primer evento
+  `reserved` en una sola transacción, únicamente cuando guard y ledger apuntan
+  al mismo archivo SQLite. Un fallo o colisión revierte ambas escrituras.
 - `OpenCodeWakePort.request_wake() == queued` no podrá cerrar una entrega.
 - La integración futura requiere una interfaz separada de observación terminal;
   no se ampliará silenciosamente el puerto de envío.
@@ -84,4 +87,5 @@ marca `ambiguous`. Nunca reenvía durante reconciliación.
 
 Esta ADR no elige schema público, periodo de retención, endpoint de observación,
 política de retry ni método de idempotencia de proveedor. La implementación
-local no autoriza integración, red, credenciales, prompt, wake ni automatización.
+local y su unión con la reserva no autorizan transición a `submitting`, red,
+credenciales, prompt, wake ni automatización.

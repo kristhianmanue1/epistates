@@ -52,6 +52,64 @@ class WakeGuardStore:
         except sqlite3.DatabaseError:
             self._disabled = True
 
+    def _connect(self) -> sqlite3.Connection:
+        db = sqlite3.connect(self.path, timeout=5)
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA synchronous=FULL")
+        return db
+
+    def _prepare_reservation(self, *, receipt_digest: str, target_id: str,
+                             nonce: str, dispatched_at: str, observed_at: str,
+                             ttl_seconds: int):
+        if self._disabled:
+            return "disabled"
+        if (not _DIGEST.fullmatch(receipt_digest or "") or
+                not _ID.fullmatch(target_id or "") or not _NONCE.fullmatch(nonce or "") or
+                not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or
+                ttl_seconds <= 0):
+            return "invalid"
+        try:
+            now, dispatched = _utc(observed_at), _utc(dispatched_at)
+        except (ValueError, TypeError):
+            return "invalid"
+        if now < dispatched or (now - dispatched).total_seconds() > ttl_seconds:
+            return "expired"
+        return now
+
+    def _reserve_in_transaction(self, db: sqlite3.Connection, *, receipt_digest: str,
+                                target_id: str, nonce: str, observed_at: str,
+                                now: datetime) -> str:
+        enabled, global_limit, target_limit, window_seconds, killed, last = db.execute(
+            "SELECT enabled, global_limit, target_limit, window_seconds, killed, last_observed_at "
+            "FROM wake_policy WHERE id=1").fetchone()
+        if not enabled or killed:
+            return "disabled"
+        if last is not None and now < _utc(last):
+            return "expired"
+        bucket = int(now.timestamp()) // window_seconds
+        duplicate = db.execute(
+            "SELECT 1 FROM wake_reservations WHERE nonce=? OR receipt_digest=?",
+            (nonce, receipt_digest),
+        ).fetchone()
+        if duplicate:
+            return "duplicate"
+        global_count = db.execute(
+            "SELECT COUNT(*) FROM wake_reservations WHERE bucket=?", (bucket,)
+        ).fetchone()[0]
+        target_count = db.execute(
+            "SELECT COUNT(*) FROM wake_reservations WHERE bucket=? AND target_id=?",
+            (bucket, target_id),
+        ).fetchone()[0]
+        if global_count >= global_limit or target_count >= target_limit:
+            return "rate_limited"
+        db.execute(
+            "INSERT INTO wake_reservations(nonce, receipt_digest, target_id, reserved_at, bucket) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (nonce, receipt_digest, target_id, observed_at, bucket),
+        )
+        db.execute("UPDATE wake_policy SET last_observed_at=? WHERE id=1", (observed_at,))
+        return "reserved"
+
     def activate_kill_switch(self) -> str:
         """Activa de forma durable el kill switch; no existe desactivación aquí."""
         if self._disabled:
@@ -67,42 +125,22 @@ class WakeGuardStore:
     def reserve(self, *, receipt_digest: str, target_id: str, nonce: str,
                 dispatched_at: str, observed_at: str, ttl_seconds: int) -> str:
         """Reserva una cuota o devuelve un resultado cerrado; nunca hace wake."""
-        if self._disabled:
-            return "disabled"
-        if (not _DIGEST.fullmatch(receipt_digest or "") or
-                not _ID.fullmatch(target_id or "") or not _NONCE.fullmatch(nonce or "") or
-                not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0):
-            return "invalid"
+        prepared = self._prepare_reservation(
+            receipt_digest=receipt_digest, target_id=target_id, nonce=nonce,
+            dispatched_at=dispatched_at, observed_at=observed_at, ttl_seconds=ttl_seconds,
+        )
+        if isinstance(prepared, str):
+            return prepared
         try:
-            now, dispatched = _utc(observed_at), _utc(dispatched_at)
-        except (ValueError, TypeError):
-            return "invalid"
-        if now < dispatched or (now - dispatched).total_seconds() > ttl_seconds:
-            return "expired"
-        try:
-            with sqlite3.connect(self.path, timeout=5) as db:
+            with self._connect() as db:
                 db.execute("BEGIN IMMEDIATE")
-                enabled, global_limit, target_limit, window_seconds, killed, last = db.execute(
-                    "SELECT enabled, global_limit, target_limit, window_seconds, killed, last_observed_at "
-                    "FROM wake_policy WHERE id=1").fetchone()
-                if not enabled or killed:
-                    return "disabled"
-                if last is not None and now < _utc(last):
-                    return "expired"
-                bucket = int(now.timestamp()) // window_seconds
-                duplicate = db.execute("SELECT 1 FROM wake_reservations WHERE nonce=? OR receipt_digest=?", (nonce, receipt_digest)).fetchone()
-                if duplicate:
-                    return "duplicate"
-                global_count = db.execute("SELECT COUNT(*) FROM wake_reservations WHERE bucket=?", (bucket,)).fetchone()[0]
-                target_count = db.execute("SELECT COUNT(*) FROM wake_reservations WHERE bucket=? AND target_id=?", (bucket, target_id)).fetchone()[0]
-                if global_count >= global_limit or target_count >= target_limit:
-                    return "rate_limited"
-                db.execute("INSERT INTO wake_reservations(nonce, receipt_digest, target_id, reserved_at, bucket) VALUES (?, ?, ?, ?, ?)", (nonce, receipt_digest, target_id, observed_at, bucket))
-                db.execute("UPDATE wake_policy SET last_observed_at=? WHERE id=1", (observed_at,))
+                return self._reserve_in_transaction(
+                    db, receipt_digest=receipt_digest, target_id=target_id,
+                    nonce=nonce, observed_at=observed_at, now=prepared,
+                )
         except (sqlite3.DatabaseError, ValueError, TypeError):
             self._disabled = True
             return "disabled"
-        return "reserved"
 
 
 __all__ = ["WakeGuardStore"]

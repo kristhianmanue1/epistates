@@ -111,6 +111,25 @@ class DeliveryLedgerStore:
                         provider_id: str, provider_version: str, agent_id: str, model_id: str,
                         body_digest: str, observed_at: str) -> str:
         """Crea un intento reservado; un replay byte-equivalente es idempotente."""
+        expected = self._prepare_reserved(
+            nonce=nonce, receipt_digest=receipt_digest, target_id=target_id,
+            provider_id=provider_id, provider_version=provider_version,
+            agent_id=agent_id, model_id=model_id, body_digest=body_digest,
+            observed_at=observed_at,
+        )
+        if isinstance(expected, str):
+            return expected
+        try:
+            with self._connect() as db:
+                db.execute("BEGIN IMMEDIATE")
+                return self._create_reserved_in_transaction(db, expected)
+        except (OSError, sqlite3.DatabaseError):
+            self._disabled = True
+            return "disabled"
+
+    def _prepare_reserved(self, *, nonce: str, receipt_digest: str, target_id: str,
+                          provider_id: str, provider_version: str, agent_id: str,
+                          model_id: str, body_digest: str, observed_at: str):
         values = (target_id, provider_id, provider_version, agent_id, model_id)
         if (self._disabled or not isinstance(nonce, str) or not _NONCE.fullmatch(nonce) or
                 not isinstance(receipt_digest, str) or not _DIGEST.fullmatch(receipt_digest) or
@@ -125,31 +144,32 @@ class DeliveryLedgerStore:
             nonce, receipt_digest, target_id, provider_id, provider_version, agent_id, model_id,
             body_digest, "reserved", observed_at, observed_at,
         )
-        try:
-            with self._connect() as db:
-                db.execute("BEGIN IMMEDIATE")
-                row = db.execute(
-                    "SELECT nonce, receipt_digest, target_id, provider_id, provider_version, agent_id, "
-                    "model_id, body_digest, state, created_at, updated_at "
-                    "FROM delivery_attempts WHERE nonce=? OR receipt_digest=?",
-                    (nonce, receipt_digest),
-                ).fetchone()
-                if row is not None:
-                    return "reserved" if tuple(row) == expected else "duplicate"
-                db.execute(
-                    "INSERT INTO delivery_attempts(nonce, receipt_digest, target_id, "
-                    "provider_id, provider_version, agent_id, model_id, body_digest, state, "
-                    "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    expected,
-                )
-                db.execute(
-                    "INSERT INTO delivery_events(nonce, sequence, from_state, to_state, observed_at) "
-                    "VALUES(?, 0, NULL, 'reserved', ?)",
-                    (nonce, observed_at),
-                )
-        except (OSError, sqlite3.DatabaseError):
-            self._disabled = True
-            return "disabled"
+        return expected
+
+    def _create_reserved_in_transaction(self, db: sqlite3.Connection, expected: tuple,
+                                        *, idempotent_replay: bool = True) -> str:
+        nonce, receipt_digest = expected[:2]
+        row = db.execute(
+            "SELECT nonce, receipt_digest, target_id, provider_id, provider_version, agent_id, "
+            "model_id, body_digest, state, created_at, updated_at "
+            "FROM delivery_attempts WHERE nonce=? OR receipt_digest=?",
+            (nonce, receipt_digest),
+        ).fetchone()
+        if row is not None:
+            if idempotent_replay and tuple(row) == expected:
+                return "reserved"
+            return "duplicate"
+        db.execute(
+            "INSERT INTO delivery_attempts(nonce, receipt_digest, target_id, "
+            "provider_id, provider_version, agent_id, model_id, body_digest, state, "
+            "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            expected,
+        )
+        db.execute(
+            "INSERT INTO delivery_events(nonce, sequence, from_state, to_state, observed_at) "
+            "VALUES(?, 0, NULL, 'reserved', ?)",
+            (nonce, expected[-1]),
+        )
         return "reserved"
 
     def transition(self, *, nonce: str, expected_state: str, new_state: str,

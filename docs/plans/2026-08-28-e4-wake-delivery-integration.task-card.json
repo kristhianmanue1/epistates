@@ -1,0 +1,72 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-wake-delivery-integration",
+  "objective": "Integrar atómicamente la reserva de WakeGuardStore con la creación reserved del ledger E4 en un único archivo SQLite, sin transporte ni wake.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "e6c8e2588cfd17eb63d28f7954880ba0dfd1958f",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-wake-delivery-integration",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/wake_guard.py",
+    "src/epistates/delivery_ledger.py",
+    "src/epistates/wake_delivery.py",
+    "tests/test_wake_delivery.py",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-wake-delivery-integration.task-card.json",
+    "docs/adversarial-e4-wake-delivery-integration.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/architecture/0007-reactivacion-soportada.md",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/adversarial-e4-delivery-ledger.md",
+    "src/epistates/wake_guard.py",
+    "src/epistates/delivery_ledger.py",
+    "tests/test_wake_guard.py",
+    "tests/test_delivery_ledger.py"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; ninguna ruta fuera de las ocho autorizadas"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Coordinador interno que exige un archivo SQLite compartido y confirma reserva, cuota y evento delivery reserved en una transacción; pruebas de rollback, concurrencia, kill switch, colisiones y restart. Sin proveedor, red, prompt, sesión, transición a submitting, reconciliación, retry ni wake.",
+  "stop_condition": "Detenerse ante necesidad de enviar, observar proveedor, transicionar a submitting, liberar cuota, reintentar o exportar una API pública.",
+  "new_decision_required_for": [
+    "transición runtime a submitting",
+    "reconciliador runtime",
+    "observación terminal de proveedor",
+    "retry automático",
+    "wake real o automático",
+    "cambio de API pública",
+    "release"
+  ]
+}

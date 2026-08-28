@@ -53,6 +53,14 @@ TAREA EPI-E4-001-F — ledger durable local
   [x] Restart, crash en `submitting`, concurrencia y esquema desconocido.
   Estado: implementación local cerrada; API pública, integración y wake bloqueados.
   Tarjeta: [e4-delivery-ledger-implementation](2026-08-28-e4-delivery-ledger-implementation.task-card.json).
+
+TAREA EPI-E4-001-G — reserva y ledger atómicos
+  Produce: coordinador interno, refactor privado, pruebas y ronda adversarial.
+  [x] Exigir un único archivo SQLite para ambos stores.
+  [x] Revertir cuota, reserva y reloj si no se crea el evento `reserved`.
+  [x] Probar fallo inyectado, colisión, kill switch, restart y concurrencia.
+  Estado: primitiva local cerrada; adopción runtime, `submitting`, proveedor y wake bloqueados.
+  Tarjeta: [e4-wake-delivery-integration](2026-08-28-e4-wake-delivery-integration.task-card.json).
 ```
 
 ## Definition of Done del diseño
