@@ -64,7 +64,8 @@ TAREA EPI-E3-001-C — revisión adversarial de E3a
   colisiones, estado cruzado, replay tras restart y digest adulterado.
 
 TAREA EPI-E3-001-D — watcher de mínimo privilegio (E3b)
-  Requiere: aceptación de E3a, contrato de fuente permitido y tarea separada.
+  Requiere: aceptación de E3a, [ADR-0005](../architecture/0005-fuente-local-de-senales.md),
+    contrato de fuente permitido y tarea separada.
   Produce: watcher que sólo registra/consume y solicita inspección; no puede
     ejecutar efectos operativos.
 ```

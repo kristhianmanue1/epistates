@@ -13,3 +13,5 @@ sustituye o acota con referencia explícita.
 - [ADR-0004](0004-senal-local-y-consumo-atomico.md): descomposición de la señal
   local en recibo persistente, watcher de mínimo privilegio y reactivación
   posterior.
+- [ADR-0005](0005-fuente-local-de-senales.md): bandeja local no confiable y
+  requisitos de publicación, recuperación y contención.
