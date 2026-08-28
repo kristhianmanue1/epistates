@@ -27,3 +27,9 @@ class InboxTests(unittest.TestCase):
         target = self.root / "target.json"; target.write_text(json.dumps(context()), encoding="utf-8")
         (self.root / "link.json").symlink_to(target.name)
         self.assertEqual(self.inbox.reconcile(observed_at="2026-08-28T17:01:00Z", ttl_seconds=120), ["invalid", "accepted"])
+    def test_quarantine_prevents_invalid_starvation(self):
+        self.inbox.max_files = 1
+        (self.root / "00-bad").write_text("{", encoding="utf-8")
+        (self.root / "99-good").write_text(json.dumps(context()), encoding="utf-8")
+        self.assertEqual(self.inbox.reconcile(observed_at="2026-08-28T17:01:00Z", ttl_seconds=120), ["invalid"])
+        self.assertEqual(self.inbox.reconcile(observed_at="2026-08-28T17:01:00Z", ttl_seconds=120), ["accepted"])
