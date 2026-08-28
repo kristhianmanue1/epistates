@@ -17,3 +17,5 @@ sustituye o acota con referencia explícita.
   requisitos de publicación, recuperación y contención.
 - [ADR-0006](0006-adaptador-kqueue-local.md): adaptador macOS de una espera;
   sólo solicita reconciliación local y no despierta tareas.
+- [ADR-0007](0007-reactivacion-soportada.md): frontera documental para wake
+  público, límites persistentes y kill switch; runtime aún bloqueado.

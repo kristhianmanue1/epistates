@@ -13,6 +13,8 @@ sin duplicar criterios de aceptación.
   [task-card de diseño](2026-08-28-e3a-receipt-design.task-card.json).
   El adaptador de eventos está limitado por la
   [task-card kqueue E3b](2026-08-28-e3b-kqueue-adapter.task-card.json).
+- [EPI-E4-001](2026-08-28-e4-reactivation-design.md): diseño de reactivación
+  soportada; runtime bloqueado hasta una autorización y contrato posteriores.
 
 Un plan no concede permisos. Cambios de runtime, contratos, operaciones Git
 protegidas o activación de adaptadores requieren la autoridad que corresponda.

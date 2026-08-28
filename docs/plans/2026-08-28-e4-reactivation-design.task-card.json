@@ -1,0 +1,17 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-reactivation-design",
+  "objective": "Definir E4: interfaz pública, límites persistentes, kill switch y threat model, sin runtime ni tráfico externo.",
+  "target": {"repository": "epistates", "base_sha": "b3d4b936ba4b9ad583dde30968ca9789547e7a5f", "branch": "main", "worktree": "/Users/krisnova/www/aria/epistates"},
+  "role": "documenter",
+  "authority": {"grant_id": "maintainer-e4-reactivation-design", "granted_by": "maintainer", "granted_actions": ["read", "edit", "run_checks"], "protected_operations_authorized": []},
+  "allowed_paths": ["docs/architecture/README.md", "docs/architecture/0007-reactivacion-soportada.md", "docs/plans/README.md", "docs/plans/2026-08-28-e4-reactivation-design.md", "docs/plans/2026-08-28-e4-reactivation-design.task-card.json", "docs/threat-model-e4-reactivation.md", "docs/adversarial-e4-design.md"],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": ["commit", "push", "open_pr", "merge", "release", "install_dependencies", "change_scope", "git_reset", "create_branch", "delete_branch", "create_worktree", "remove_worktree"],
+  "inputs": ["project-manifest.yaml", "docs/architecture/0004-senal-local-y-consumo-atomico.md", "docs/architecture/0006-adaptador-kqueue-local.md", "docs/adversarial-e3b-kqueue.md"],
+  "checks": [{"check_id": "git_status", "expected": "exit 0"}, {"check_id": "diff_check", "expected": "exit 0"}, {"check_id": "unit_tests", "expected": "exit 0"}],
+  "evidence": {"report_format": "rag/v1", "required": ["worktree_status", "diff_check", "check_results"]},
+  "delivery": "ADR, plan E4, threat model, ronda adversarial de diseño y tarjeta válida; detenerse sin runtime, API externa, credenciales, wake, daemon o reactivación.",
+  "stop_condition": "Detenerse ante necesidad de elegir o invocar una API de proveedor, almacenar secretos, enviar wake real, cambiar contratos publicados o implementar persistencia.",
+  "new_decision_required_for": ["implementación E4", "adaptador de proveedor", "wake real", "credenciales", "persistencia de policy, rate limit o kill switch", "cambio de contratos públicos", "release"]
+}
