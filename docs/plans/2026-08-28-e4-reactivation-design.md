@@ -45,6 +45,14 @@ TAREA EPI-E4-001-E — ciclo durable de entrega asíncrona
   [x] Declarar que HTTP 204 sólo acredita submitted.
   Estado: diseño cerrado; implementación, integración y wake bloqueados.
   Tarjeta: [e4-delivery-lifecycle](2026-08-28-e4-delivery-lifecycle.task-card.json).
+
+TAREA EPI-E4-001-F — ledger durable local
+  Produce: módulo SQLite interno, pruebas, tarjeta y ronda adversarial.
+  [x] Creación idempotente y binding de recibo, destino, proveedor y cuerpo.
+  [x] CAS monotónico con historial append-only atómico.
+  [x] Restart, crash en `submitting`, concurrencia y esquema desconocido.
+  Estado: implementación local cerrada; API pública, integración y wake bloqueados.
+  Tarjeta: [e4-delivery-ledger-implementation](2026-08-28-e4-delivery-ledger-implementation.task-card.json).
 ```
 
 ## Definition of Done del diseño

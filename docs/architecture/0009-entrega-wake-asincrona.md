@@ -1,6 +1,7 @@
 # ADR-0009 — Entrega asíncrona durable y reconciliable
 
-**Estado:** aceptado para diseño; implementación y wake bloqueados. **Fecha:** 2026-08-28. **Depende de:** ADR-0007 y ADR-0008.
+**Estado:** aceptado; ledger local implementado, integración y wake bloqueados.
+**Fecha:** 2026-08-28. **Depende de:** ADR-0007 y ADR-0008.
 
 ## Contexto
 
@@ -67,6 +68,9 @@ marca `ambiguous`. Nunca reenvía durante reconciliación.
 
 ## Consecuencias
 
+- `DeliveryLedgerStore` implementa el ledger interno SQLite y conserva cada
+  transición en un historial append-only dentro de la misma transacción que el
+  cambio CAS. No se exporta aún desde la API raíz del paquete.
 - `OpenCodeWakePort.request_wake() == queued` no podrá cerrar una entrega.
 - La integración futura requiere una interfaz separada de observación terminal;
   no se ampliará silenciosamente el puerto de envío.
@@ -78,6 +82,6 @@ marca `ambiguous`. Nunca reenvía durante reconciliación.
 
 ## No decisión
 
-Esta ADR no elige schema público, tablas, periodo de retención, endpoint de
-observación, política de retry ni método de idempotencia. No autoriza código,
-red, credenciales, prompt, wake ni automatización.
+Esta ADR no elige schema público, periodo de retención, endpoint de observación,
+política de retry ni método de idempotencia de proveedor. La implementación
+local no autoriza integración, red, credenciales, prompt, wake ni automatización.

@@ -1,0 +1,68 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-delivery-ledger-implementation",
+  "objective": "Implementar y probar un ledger SQLite local para el ciclo durable E4, sin integrarlo con reservas, proveedores ni wake.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "daa285ba4714508c7cfe013a03f20d84343b437a",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-delivery-ledger-implementation",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/delivery_ledger.py",
+    "src/epistates/__init__.py",
+    "tests/test_delivery_ledger.py",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-delivery-ledger-implementation.task-card.json",
+    "docs/adversarial-e4-delivery-ledger.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/adversarial-e4-delivery-lifecycle.md",
+    "src/epistates/wake_guard.py",
+    "tests/test_wake_guard.py"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; ninguna ruta fuera de las siete autorizadas"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Ledger SQLite local con creación idempotente, transiciones monotónicas mediante CAS, estados terminales, timestamps no regresivos, recuperación tras restart y pruebas de concurrencia/crash. Sin red, prompts, sesiones, proveedor, retries, liberación de cuota ni wake.",
+  "stop_condition": "Detenerse ante necesidad de cambiar schemas públicos, integrar WakeGuardStore u OpenCodeWakePort, ejecutar I/O de proveedor, implementar retry o activar wake.",
+  "new_decision_required_for": [
+    "integración con WakeGuardStore",
+    "reconciliador runtime",
+    "observación terminal de proveedor",
+    "retry automático",
+    "wake real o automático",
+    "cambio de API pública",
+    "release"
+  ]
+}
