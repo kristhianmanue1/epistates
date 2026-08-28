@@ -11,8 +11,8 @@ módulo, por lo que runtime y metadata no pueden divergir silenciosamente:
 
 La versión PEP 440 del paquete (``0.1.0a1``) es distinta del tag humano
 (``v0.1.0-alpha.1``): el primero es el identificador de distribución Python, el
-segundo es la etiqueta Git solicitada por el mantenedor y aún pendiente de
-autorización.
+segundo es la etiqueta Git publicada para la prerelease de GitHub. Ambas cadenas
+identifican el mismo corte, pero no son intercambiables literalmente.
 """
 
 __version__ = "0.1.0a1"

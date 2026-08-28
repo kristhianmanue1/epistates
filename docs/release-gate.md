@@ -8,8 +8,9 @@ publicado.**
 
 Este documento define el gate documental y ejecutable para una candidata de
 release de Epistates. Cada criterio es verificable localmente sin red. Tag,
-push y GitHub Release **no** son parte de este gate: quedan pendientes de
-autoridad explícita del mantenedor.
+push y GitHub Release **no** son parte de este gate: requieren autoridad
+separada. Para esta candidata fueron autorizados y ejecutados después del gate;
+una publicación futura necesitará autoridad nueva.
 
 ## Alcance permitido del corte
 
@@ -126,16 +127,15 @@ Ejecutado con `cwd` **fuera** del repo (p. ej. `/private/tmp`), sin
 
 - [ ] Reporte RAG breve con: archivos y comandos a resultado, hash SHA-256 del
       wheel, contenido relevante y riesgos.
-- [x] `docs/plan-inicial.md` indica candidata aceptada por el gate local y
-      pendiente de las operaciones Git autorizadas; **no** declara release
-      publicada.
+- [x] Al cerrar el gate, `docs/plan-inicial.md` indicaba candidata aceptada y
+      pendiente de operaciones Git separadas; el estado posterior de publicación
+      está registrado en la cabecera y en la decisión final de este documento.
 
-## Pendiente de autorización (fuera de este gate)
+## Autoridad separada al cerrar el gate (registro histórico)
 
-- Tag `v0.1.0-alpha.1`.
-- Push de rama/tag.
-- GitHub Release / PyPI.
-- Auditoría adversarial fresca sobre este corte antes de cualquier publicación.
+- Tag `v0.1.0-alpha.1`, push y GitHub Release: autorizados y completados el
+  2026-08-12 después de la auditoría adversarial fresca.
+- PyPI: no autorizado ni publicado.
 
 ## Resultado del gate — corrección C1 (2026-08-11, candidata `0.1.0a1`)
 
@@ -148,7 +148,8 @@ Ejecutado con `cwd` **fuera** del repo (p. ej. `/private/tmp`), sin
 
 Ejecutado por el ejecutor en el worktree
 `/private/tmp/epistates-release-alpha1` sobre la base
-`5f8d58b3c8bb15fdf8ac4380d8e982f4ab05c32d`. **No publicada.** Esta corrida
+`5f8d58b3c8bb15fdf8ac4380d8e982f4ab05c32d`. **No publicada en el momento de
+esta corrida.** Esta corrida
 corrige los hallazgos C1: build reproducible, conteo de módulos, presencia de
 licencia en el wheel y classifiers no probados.
 
@@ -277,8 +278,9 @@ smoke verificó además `importlib.metadata.version("epistates") == "0.1.0a1"` y
   (CommandLineTools). Linux no probado en este corte; Windows declarado no
   soportado. Versiones de Python superiores a 3.9 no se probaron aquí y no se
   afirman en los classifiers.
-- **Sin tag/push/release.** Tag `v0.1.0-alpha.1`, push y GitHub Release quedan
-  pendientes de autorización del mantenedor y de auditoría adversarial fresca.
+- **Estado al cerrar esta corrida histórica:** tag, push y GitHub Release aún
+  requerían autorización y auditoría adversarial fresca; se completaron después,
+  el 2026-08-12.
 
 ## Resultado del gate de cierre H4
 
@@ -394,9 +396,9 @@ No se afirma sandbox.
 - **Plataforma / Python**: smoke y builds en macOS con Python 3.9
   (CommandLineTools). Linux no probado; Windows declarado no soportado. Versiones
   de Python > 3.9 no se afirmaron en los classifiers.
-- **Sin tag/push/release**: la revisión adversarial final C1 del gate terminó
-  `PROCEED`; tag `v0.1.0-alpha.1`, push y GitHub Release siguen pendientes de
-  autoridad separada del mantenedor.
+- **Estado al cerrar el gate H4:** la revisión adversarial final C1 terminó
+  `PROCEED`; tag, push y GitHub Release aún requerían autoridad separada. Esa
+  autoridad se concedió y las operaciones se completaron el 2026-08-12.
 
 ### Decisión
 

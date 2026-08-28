@@ -5,21 +5,21 @@ inspira en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) y el
 versionado del paquete sigue [PEP 440](https://peps.python.org/pep-0440/).
 
 > **Estado experimental.** Epistates es software experimental sin ninguna
-> garantía. Las versiones `-alpha` son candidatas de desarrollo: la API, los
-> contratos y el CLI pueden cambiar sin previo aviso. **Ninguna versión se
-> considera publicada** hasta que el mantenedor lo autorice explícitamente; la
-> presencia de una entrada aquí es sólo la preparación de un candidato local.
+> garantía. Las versiones `-alpha` pueden cambiar sin previo aviso. Una entrada
+> en este archivo no prueba publicación por sí sola: cada versión declara su
+> estado y la publicación se contrasta con el tag y la release remotos.
 
 ## [Unreleased]
 
 Sin cambios desde `0.1.0-alpha.1`. Las líneas futuras requieren autoridad
 vigente del mantenedor y, para los hitos, revisión adversarial fresca.
 
-## [0.1.0-alpha.1] - 2026-08-11
+## [0.1.0-alpha.1] - 2026-08-12
 
-Primera candidata experimental local, reproducible y auditable de Epistates.
-**No publicada:** el gate adversarial local fue aceptado; tag, push y GitHub
-Release quedan pendientes de autorización explícita del mantenedor.
+Primera prerelease experimental, reproducible y auditable de Epistates,
+publicada en GitHub tras autorización separada del mantenedor. El tag
+`v0.1.0-alpha.1` apunta al cierre H4 `5d7a34e`; la release distribuye el wheel y
+su checksum. PyPI permanece sin publicar.
 
 La versión PEP 440 de la distribución es `0.1.0a1`. El tag humano solicitado es
 `v0.1.0-alpha.1`: ambos nombres identifican el mismo corte, pero **no** son
@@ -27,9 +27,9 @@ intercambiables como cadenas (PEP 440 normaliza `0.1.0a1`).
 
 ### Alcance real de este corte
 
-El paquete distribuye **sólo** el runtime Python puro de contratos y
-validación, sin dependencias de ejecución. El alcance funcional corresponde a
-los hitos H1–H3 cerrados del plan inicial:
+El paquete distribuye el runtime Python puro de contratos y validación, sin
+dependencias de ejecución. El alcance funcional corresponde a los hitos H1–H4
+cerrados del plan inicial:
 
 - **H1 — contrato `task-card/v1`**: schema, fixtures y validador local
   read-only. El validador sólo acepta identificadores de un catálogo cerrado;
@@ -48,33 +48,21 @@ los hitos H1–H3 cerrados del plan inicial:
   - Slice5: puente `review-evidence/v1` → `audit-result/v1` → `apply_audit`
     puro (`audit_review`), con política externa de timestamp, autoridad
     inyectada y anti-downgrade estructural.
+- **H4 — contratos instalables para agentes**: descubrimiento estático,
+  validación machine-readable, catálogo de schemas y onboarding empaquetado.
 
 ### Activos distribuidos vs. activos sólo del repositorio
 
-El wheel `0.1.0a1` contiene el paquete Python (`epistates/**/*.py`, 15 módulos
-incluyendo `_version`, `audit_review` y `review`, todos ya auditados en H1–H3)
-y la metadata `dist-info` (incluida la licencia Apache-2.0 bajo
-`dist-info/licenses/LICENSE`). **No** incluye los directorios del repositorio
-`schemas/`, `fixtures/`, `docs/` ni `tests/`:
-
-- los validadores son Python puro y no leen `schemas/*.schema.json` en runtime;
-  los archivos de schema son documentación JSON Schema descriptiva del
-  contrato, no una API cargada desde el paquete instalado;
-- los `fixtures/` son activos de desarrollo y pruebas, ligados al repositorio;
-- la documentación y las pruebas viven en el repositorio.
-
-`audit_review` y `review` **deben** estar en el wheel: son módulos ya cerrados
-y auditados en H3 (Slice5 y Slice4 respectivamente). No son módulos nuevos.
-
-No existe hoy una API `importlib.resources` sobre schemas porque el producto no
-los ha designado como API pública distribuida. Promoverlos requeriría una
-decisión de diseño y un corte separados; hacerlo en este corte introduciría
-rutas inestables. Por honestidad, este alpha declara que **no** lo son.
+El wheel `0.1.0a1` contiene 19 módulos Python, metadata `dist-info` con licencia,
+los siete schemas canónicos y dos recursos de onboarding bajo
+`epistates/data/`. Los recursos se leen mediante `importlib.resources`; los
+validadores siguen siendo Python puro y no ejecutan schemas externos. Los
+directorios `fixtures/`, `docs/` y `tests/` permanecen fuera del wheel.
 
 ### Build reproducible
 
 El wheel se construye de forma determinista fijando los timestamps al del
-commit base (`5f8d58b`, timestamp Unix `1786501546`) mediante
+commit base H4 (`128945f`, timestamp Unix `1786546459`) mediante
 `SOURCE_DATE_EPOCH`. Esto produce un wheel reproducible: dos builds
 independientes desde los mismos archivos dan idéntico nombre, tamaño,
 contenido y SHA-256. El comando determinista está documentado en
@@ -86,8 +74,8 @@ contenido y SHA-256. El comando determinista está documentado en
 - **Sin automatización.** No hay gateway, watcher, polling ni señales: la
   inspección es deliberadamente única y manual tras un aviso humano.
 - **Sin efectos por defecto.** commit, push, PR, merge, release, creación de
-  ramas/worktrees/sesiones y escritura AN-KLA están prohibidos o pendientes de
-  autoridad explícita del mantenedor.
+  ramas/worktrees/sesiones y escritura AN-KLA requieren autoridad explícita del
+  mantenedor para cada operación.
 - **Plataforma.** El adaptador `opencode-tmux/v1` requiere macOS o Linux
   (depende de `tmux`). La validación pura de contratos puede ejecutarse donde
   Python >=3.9 lo haga, pero las plataformas no probadas no se prometen.
@@ -107,4 +95,4 @@ contenido y SHA-256. El comando determinista está documentado en
 - Sin dependencias de ejecución.
 
 [Unreleased]: https://github.com/kristhianmanue1/epistates/blob/main/CHANGELOG.md
-[0.1.0-alpha.1]: https://github.com/kristhianmanue1/epistates/blob/main/CHANGELOG.md
+[0.1.0-alpha.1]: https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1

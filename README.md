@@ -5,11 +5,12 @@
 **Versión del paquete (PEP 440):** `0.1.0a1` · **Tag publicado:**
 [`v0.1.0-alpha.1`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1).
 
-> Actualización 2026-08-11: los hitos H1 (contrato `task-card/v1` y validador
+> Registro histórico 2026-08-11: los hitos H1 (contrato `task-card/v1` y validador
 > read-only), H2 (resultado de auditoría y máquina de estados) y H3 (adaptador
 > `opencode-tmux/v1` con los sub-cortes Slice1–Slice5) están cerrados tras
-> rondas adversariales independientes. La integración Git, el tag y la
-> publicación quedan pendientes de autorización del mantenedor.
+> rondas adversariales independientes. En ese corte, la integración Git, el tag
+> y la publicación aún requerían autorización separada; el mantenedor las
+> autorizó y la prerelease se publicó el 2026-08-12.
 
 > Actualización 2026-08-12: H4 cerró con gate reproducible y revisión
 > adversarial final `PROCEED`; la prerelease GitHub fue publicada con wheel y
@@ -22,7 +23,7 @@
 
 ## Instalación
 
-Epistates no está publicado en PyPI. Para evaluar la candidata `0.1.0a1`,
+Epistates no está publicado en PyPI. Para evaluar la prerelease `0.1.0a1`,
 construye el wheel de forma reproducible y instálalo en un venv limpio. El
 paquete **no tiene dependencias de ejecución** y se construye sin aislamiento
 ni red:
