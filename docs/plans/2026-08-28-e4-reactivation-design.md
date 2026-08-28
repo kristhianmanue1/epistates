@@ -24,10 +24,17 @@ TAREA EPI-E4-001-B — revisión adversarial de diseño
   [x] Atacar confused deputy, replay, doble wake, caída, reloj, cuotas,
       kill switch, endpoint falso, resultado ambiguo y ampliación de alcance.
 
-TAREA EPI-E4-001-C — contrato de implementación (bloqueada)
+TAREA EPI-E4-001-C — guard persistente sin efecto externo
+  Requiere: tarjeta separada; no elige proveedor.
+  Produce: policy, kill switch, nonce y cuota persistentes que sólo reservan.
+  Tarjeta: [e4-wake-guard](2026-08-28-e4-wake-guard.task-card.json).
+  Estado: implementado y aceptado para reserva local inerte tras
+    [ronda adversarial](../adversarial-e4-wake-guard.md).
+
+TAREA EPI-E4-001-D — adaptador de proveedor (bloqueada)
   Requiere: autorización explícita nueva, proveedor público elegido, capabilities
-  verificables, diseño de persistencia y ronda adversarial fresca.
-  Prohibido: código, dependencias, credenciales, red, wake real o reactivación.
+  verificables y ronda adversarial fresca del código final.
+  Prohibido: red, credenciales, wake real o reactivación hasta entonces.
 ```
 
 ## Definition of Done del diseño
