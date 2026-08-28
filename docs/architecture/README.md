@@ -15,3 +15,5 @@ sustituye o acota con referencia explícita.
   posterior.
 - [ADR-0005](0005-fuente-local-de-senales.md): bandeja local no confiable y
   requisitos de publicación, recuperación y contención.
+- [ADR-0006](0006-adaptador-kqueue-local.md): adaptador macOS de una espera;
+  sólo solicita reconciliación local y no despierta tareas.

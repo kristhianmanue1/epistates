@@ -1,9 +1,10 @@
 # PLAN EPI-E3-001 — señal local y consumo atómico
 
-**Estado:** E3a autorizado para diseño documental; runtime bloqueado. **ADR:**
+**Estado:** E3a y el lector reconciliador E3b están aceptados; el adaptador de
+eventos macOS está autorizado por una tarjeta separada. **ADR:**
 [`ADR-0004`](../architecture/0004-senal-local-y-consumo-atomico.md). Este plan
-no autoriza watcher, reactivación, cambios de schemas/CLI/runtime, dependencias,
-operaciones Git protegidas ni interfaces externas.
+no autoriza reactivación, cambios de schemas/CLI, dependencias, ni interfaces
+externas más allá del adaptador local limitado por su tarjeta.
 
 ## Propósito
 
@@ -69,7 +70,10 @@ TAREA EPI-E3-001-D — watcher de mínimo privilegio (E3b)
   Produce: watcher que sólo registra/consume y solicita inspección; no puede
     ejecutar efectos operativos.
   Estado: lector reconciliador aceptado en
-    [ronda E3b](../adversarial-e3b-inbox.md); adaptador de eventos pendiente.
+    [ronda E3b](../adversarial-e3b-inbox.md). El adaptador macOS `kqueue` está
+    aceptado tras [ronda E3b](../adversarial-e3b-kqueue.md) y limitado por la
+    [task-card E3b](2026-08-28-e3b-kqueue-adapter.task-card.json). E3b queda
+    cerrado como detección + reconciliación local; no incluye E4.
 ```
 
 ## DoD de E3a documental

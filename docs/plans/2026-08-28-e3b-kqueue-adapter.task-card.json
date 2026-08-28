@@ -1,0 +1,46 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e3b-kqueue-adapter",
+  "objective": "Implementar un adaptador macOS kqueue de mínimo privilegio que, ante una pista de cambio en la bandeja local, invoque exclusivamente reconcile y descarte sus resultados.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "62b560ee49f9def5ec52877f015fe29f96bbe4ed",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e3b-kqueue-adapter",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/signal_events.py",
+    "tests/test_signal_events.py",
+    "docs/architecture/0006-adaptador-kqueue-local.md",
+    "docs/architecture/README.md",
+    "docs/plans/README.md",
+    "docs/plans/2026-08-28-e3-senal-local.md",
+    "docs/plans/2026-08-28-e3b-kqueue-adapter.task-card.json",
+    "docs/adversarial-e3b-kqueue.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": ["commit", "push", "open_pr", "merge", "release", "install_dependencies", "change_scope", "git_reset", "create_branch", "delete_branch", "create_worktree", "remove_worktree"],
+  "inputs": [
+    "docs/architecture/0004-senal-local-y-consumo-atomico.md",
+    "docs/architecture/0005-fuente-local-de-senales.md",
+    "src/epistates/signal_inbox.py"
+  ],
+  "checks": [
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Adaptador kqueue macOS de una espera, pruebas de coalescencia/pérdida, reinicio, directorio eliminado/permisos y flood, ADR, dictamen adversarial y remoto confirmado; detenerse sin E4.",
+  "stop_condition": "Detenerse ante necesidad de API de wake, bucle o daemon, inspección, tmux, red, reactivación, soporte no macOS, dependencia o ampliación de permisos.",
+  "new_decision_required_for": ["E4", "wake o reactivación", "daemon o polling", "soporte Linux/Windows", "persistencia de kill switch", "red, credenciales o dependencias", "release"]
+}
