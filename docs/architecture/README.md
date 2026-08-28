@@ -21,3 +21,5 @@ sustituye o acota con referencia explícita.
   público, límites persistentes y kill switch; runtime aún bloqueado.
 - [ADR-0008](0008-opencode-wake-port.md): puerto OpenCode loopback con GLM de
   Z.ai configurado en OpenCode; sólo simulado.
+- [ADR-0009](0009-entrega-wake-asincrona.md): ciclo durable y monotónico para
+  distinguir reserva, envío, finalización, fallo y ambigüedad; sólo diseño.

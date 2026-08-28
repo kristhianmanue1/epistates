@@ -10,6 +10,7 @@
 | Binding de destino | Wake de tarea o sesión equivocada. |
 | Puerto público | Confused deputy hacia endpoint privado o falso. |
 | Resultado | Convertir `queued` en ejecución o permiso posterior. |
+| Ledger de entrega | Convertir un acuse asíncrono en finalización o perder el resultado tras un crash. |
 
 ## Amenazas y mitigaciones requeridas
 
@@ -23,8 +24,13 @@
 | Endpoint suplantado | Registro estático de proveedor, versión y capabilities aprobado; sin descubrimiento dinámico. |
 | Credencial excesiva | Mínimo alcance, fuera de artefactos y logs; una tarea futura debe definirla. |
 | Resultado de red ambiguo | Retener reserva; no inferir éxito ni repetir automáticamente. |
+| Crash entre request y persistencia | Persistir `submitting` antes del I/O; reconciliar o marcar `ambiguous`, nunca reenviar. |
+| `204` seguido de fallo del proveedor | Registrar `submitted`; observar una superficie terminal separada antes de `completed`. |
+| Marcador assistant vacío | No usar presencia de mensaje como finalización; exigir condición terminal y binding de entrega. |
+| Saldo, cuota o modelo no disponible | `connected` no basta; fallo terminal saneado conserva nonce/cuota y bloquea retry automático. |
+| Reconciliador como segundo ejecutor | Sólo inspección y CAS monotónico; no envía prompts ni crea autorización. |
 | Wake usado para mutar o aceptar | API sólo expresa wake; pasos posteriores conservan su propia autorización. |
 
 ## Suposiciones y bloqueo
 
-Un proceso local o proveedor comprometido puede mentir; resultados del puerto son datos, no atestaciones. No existe aún identidad criptográfica de agente ni API de proveedor autorizada. No se implementa E4 sin proveedor público verificable, almacenamiento durable de los tres controles, modelo de identidad de destino, pruebas de crash/restart y revisión adversarial fresca del código final.
+Un proceso local o proveedor comprometido puede mentir; resultados del puerto son datos, no atestaciones. No existe aún identidad criptográfica de agente ni contrato implementado de observación terminal. No se implementa E4 sin proveedor público verificable, almacenamiento durable de los controles y del ledger de entrega, modelo de identidad de destino, pruebas de crash/restart y revisión adversarial fresca del código final.

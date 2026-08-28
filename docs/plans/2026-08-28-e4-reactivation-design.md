@@ -37,6 +37,14 @@ TAREA EPI-E4-001-D — adaptador de proveedor (bloqueada)
   Prohibido: red, credenciales, wake real o reactivación hasta entonces.
   Estado: puerto OpenCode simulado y limitado por la
     [task-card](2026-08-28-e4-opencode-port.task-card.json); activación sigue bloqueada.
+
+TAREA EPI-E4-001-E — ciclo durable de entrega asíncrona
+  Produce: ADR-0009, threat model actualizado, tarjeta y ronda adversarial.
+  [x] Separar reserved, submitting, submitted, completed, failed y ambiguous.
+  [x] Fijar transiciones monotónicas, crash windows y reconciliación sin retry.
+  [x] Declarar que HTTP 204 sólo acredita submitted.
+  Estado: diseño cerrado; implementación, integración y wake bloqueados.
+  Tarjeta: [e4-delivery-lifecycle](2026-08-28-e4-delivery-lifecycle.task-card.json).
 ```
 
 ## Definition of Done del diseño
