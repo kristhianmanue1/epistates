@@ -49,8 +49,9 @@ TAREA EPI-E3-001-B — diseño ejecutable del contrato de recibo
   Steps:
   - [x] Proponer identidad, resultados cerrados, consumo único y matriz de
     escenarios — ver [propuesta E3a](2026-08-28-e3a-receipt-design.md).
-  - [ ] Convertir la propuesta en schema/API/store y fixtures ejecutables bajo
-    una tarjeta de runtime nueva y revisión de alcance.
+  - [x] Implementar store SQLite y pruebas de consumo bajo la
+    [task-card E3b](2026-08-28-e3b-receipt-store.task-card.json); pendiente de
+    revisión adversarial fresca.
   Stop: si exige dependencia, fuente de red, credenciales, contenido libre o
     cambia task-card/v1, detener y pedir ADR/autoridad nueva.
 
