@@ -19,3 +19,5 @@ sustituye o acota con referencia explícita.
   sólo solicita reconciliación local y no despierta tareas.
 - [ADR-0007](0007-reactivacion-soportada.md): frontera documental para wake
   público, límites persistentes y kill switch; runtime aún bloqueado.
+- [ADR-0008](0008-opencode-wake-port.md): puerto OpenCode loopback con GLM de
+  Z.ai configurado en OpenCode; sólo simulado.

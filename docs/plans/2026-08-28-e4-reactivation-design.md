@@ -35,6 +35,8 @@ TAREA EPI-E4-001-D — adaptador de proveedor (bloqueada)
   Requiere: autorización explícita nueva, proveedor público elegido, capabilities
   verificables y ronda adversarial fresca del código final.
   Prohibido: red, credenciales, wake real o reactivación hasta entonces.
+  Estado: puerto OpenCode simulado y limitado por la
+    [task-card](2026-08-28-e4-opencode-port.task-card.json); activación sigue bloqueada.
 ```
 
 ## Definition of Done del diseño
