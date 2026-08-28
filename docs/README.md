@@ -14,3 +14,6 @@ mantenedor.
 
 La preparación de cambios y el formato de evidencia están en la
 [guía de desarrollo](development-workflow.md).
+
+La evidencia adversarial de esta adopción está en
+[EPI-SKEVI-001](adversarial-epi-skevi-001.md).

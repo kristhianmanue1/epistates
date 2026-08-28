@@ -1,7 +1,8 @@
 # PLAN EPI-SKEVI-001 — adopción limitada de prácticas de diseño y desarrollo
 
-**Estado:** tareas completadas; pendiente de revisión adversarial fresca antes
-de cierre. Este plan no autoriza cambios de runtime, contratos
+**Estado:** cerrado con revisión adversarial `proceed` el 2026-08-28; véase
+[`adversarial-epi-skevi-001.md`](../adversarial-epi-skevi-001.md). Este plan no
+autoriza cambios de runtime, contratos
 publicados, operaciones Git protegidas ni activación de adaptadores.
 
 ## Propósito
