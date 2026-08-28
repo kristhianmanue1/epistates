@@ -5,6 +5,7 @@ una señal previamente ligada por el caller y devuelve un resultado cerrado.
 """
 
 import sqlite3
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Union
@@ -15,6 +16,8 @@ class SignalReceiptError(ValueError):
 
 
 _OUTCOMES = frozenset({"accepted", "duplicate", "expired", "invalid", "disabled"})
+_ID = re.compile(r"[a-z][a-z0-9-]{2,63}")
+_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 def _utc(value: str) -> datetime:
@@ -45,7 +48,7 @@ class SignalReceiptStore:
         """Devuelve un outcome; sólo la primera inserción válida es accepted."""
         if kill_switch or self._disabled:
             return "disabled"
-        required = {"task_id", "run_id", "attempt_id", "adapter_id", "session_name", "dispatch_receipt_digest", "event_type", "dispatched_at"}
+        required = {"task_id", "run_id", "attempt_id", "adapter_id", "session_name", "dispatch_receipt_digest", "event_type", "dispatched_at", "current_state"}
         if not isinstance(context, Mapping) or set(context) != required:
             return "invalid"
         if not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
@@ -54,6 +57,12 @@ class SignalReceiptStore:
         if any(not isinstance(value, str) or not value for value in values):
             return "invalid"
         if context["event_type"] != "external_completion":
+            return "invalid"
+        if context["current_state"] != "WAITING_EXTERNAL":
+            return "invalid"
+        if any(not _ID.fullmatch(context[key]) for key in ("task_id", "run_id", "attempt_id", "adapter_id", "session_name")):
+            return "invalid"
+        if not _DIGEST.fullmatch(context["dispatch_receipt_digest"]):
             return "invalid"
         try:
             now, dispatched = _utc(observed_at), _utc(context["dispatched_at"])
