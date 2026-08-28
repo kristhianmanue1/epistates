@@ -45,6 +45,12 @@ TAREA EPI-E3-001-B — diseño ejecutable del contrato de recibo
   Consume: resultado aceptado de EPI-E3-001-A y un contrato de tarea nuevo.
   Produce: propuesta de schema/API/store con semántica de crash/restart,
     concurrencia, TTL y retención; fixtures nominales y adversariales.
+  Tarjeta documental: [e3a-receipt-design](2026-08-28-e3a-receipt-design.task-card.json).
+  Steps:
+  - [x] Proponer identidad, resultados cerrados, consumo único y matriz de
+    escenarios — ver [propuesta E3a](2026-08-28-e3a-receipt-design.md).
+  - [ ] Convertir la propuesta en schema/API/store y fixtures ejecutables bajo
+    una tarjeta de runtime nueva y revisión de alcance.
   Stop: si exige dependencia, fuente de red, credenciales, contenido libre o
     cambia task-card/v1, detener y pedir ADR/autoridad nueva.
 
