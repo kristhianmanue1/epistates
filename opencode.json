@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "epistates-inspect": {
+      "description": "Estado read-only para la reactivación E4 de Epistates.",
+      "mode": "primary",
+      "model": "zai/glm-5.2",
+      "prompt": "Responde sólo con estado breve. No ejecutes herramientas, no leas archivos, no modifiques datos y no hagas red.",
+      "permission": {
+        "*": "deny",
+        "external_directory": "deny"
+      }
+    }
+  }
+}
