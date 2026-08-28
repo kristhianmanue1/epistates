@@ -68,6 +68,8 @@ TAREA EPI-E3-001-D — watcher de mínimo privilegio (E3b)
     contrato de fuente permitido y tarea separada.
   Produce: watcher que sólo registra/consume y solicita inspección; no puede
     ejecutar efectos operativos.
+  Estado: lector reconciliador aceptado en
+    [ronda E3b](../adversarial-e3b-inbox.md); adaptador de eventos pendiente.
 ```
 
 ## DoD de E3a documental
