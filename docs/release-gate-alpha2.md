@@ -1,7 +1,7 @@
 # Release Gate — Epistates 0.1.0-alpha.2
 
 **Versión PEP 440:** `0.1.0a2` · **Tag futuro:** `v0.1.0-alpha.2`
-**Estado:** gate `PROCEED`; prerelease GitHub autorizada. PyPI fuera de alcance.
+**Estado:** gate `PROCEED`; prerelease GitHub **PUBLICADA**. PyPI fuera de alcance.
 
 Este gate certifica exclusivamente el corte alpha.2. El cierre histórico de
 alpha.1 permanece en [`release-gate.md`](release-gate.md). El mantenedor
@@ -35,12 +35,12 @@ autorizó tag y GitHub Release; decidió explícitamente no publicar en PyPI.
 
 ## Evidencia de la candidata
 
-- **SHA fuente:** `0858c6c5abbd7070cb9863cfd3e77e31a77c54ad`.
-- **SOURCE_DATE_EPOCH:** `1787965609`.
+- **SHA fuente/tag:** `08c925f483fd7db82337f54e42d1ce7f1b35e6c8`.
+- **SOURCE_DATE_EPOCH:** `1787966846`.
 - **Artefacto:** `epistates-0.1.0a2-py3-none-any.whl`.
-- **Tamaño:** `130918` bytes.
+- **Tamaño:** `130899` bytes.
 - **SHA-256:**
-  `894781e3bc34e34574af51e6c787a96ef67f3efc4cb99d1c9d4b684edff00fef`.
+  `6a73a7f53dc691722d6221acb40769a2d916cfd40ed7352460b80110bba4014a`.
 - **Reproducibilidad:** dos exportaciones independientes de ese SHA,
   construidas con Python 3.9.6, `--no-deps --no-build-isolation` y el mismo
   epoch, produjeron nombre, tamaño y bytes idénticos (`cmp` exit `0`).
@@ -73,8 +73,8 @@ autorizó tag y GitHub Release; decidió explícitamente no publicar en PyPI.
   también mostró cuatro tests que crean fixtures temporales, resuelto mediante
   la copia efímera, sin mutar el checkout.
 - Wheel instalado con `pip --no-deps` en dos venvs nuevos.
-- Smoke en ambos intérpretes desde
-  `/private/tmp/epistates-alpha2-gate.dsj7Hw`, fuera del checkout y sin
+- Smoke del artefacto final en macOS 3.9.6/3.12.12 y Linux arm64
+  3.9.25/3.12.14 desde entornos limpios, fuera del checkout y sin
   `PYTHONPATH`: import, versión runtime/metadata, `--help`, `--version`,
   `describe`, `schema list`, `schema show`, validación nominal empaquetada y
   validación inválida con JSON único/exit `1`, todo conforme.
@@ -103,8 +103,11 @@ macOS arm64 + Linux arm64 con Python 3.9 y 3.12. El workflow no aporta evidencia
 
 El gate técnico local multiplataforma de la candidata está **PROCEED**. La ronda adversarial
 final está en [`adversarial-release-0.1.0-alpha.2.md`](adversarial-release-0.1.0-alpha.2.md).
-El mantenedor autorizó tag y GitHub Release y excluyó PyPI. El preflight
-confirmó que el tag/release `v0.1.0-alpha.2` no existen y que `gh` dispone de
-autenticación administrativa. El artefacto final debe reconstruirse desde el
-commit de release, repetir reproducibilidad/smoke y coincidir exactamente con
-el wheel que se adjunte.
+El mantenedor autorizó tag y GitHub Release y excluyó PyPI. La prerelease
+[`v0.1.0-alpha.2`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.2)
+se publicó el `2026-08-29T01:30:12Z`. El tag anotado se resuelve al SHA fuente
+exacto; la release no es draft y sí está marcada prerelease. GitHub reporta para
+el wheel remoto tamaño `130899` y digest
+`sha256:6a73a7f53dc691722d6221acb40769a2d916cfd40ed7352460b80110bba4014a`,
+idénticos al artefacto local validado. También se adjuntó el archivo `.sha256`.
+No se consultó ni modificó PyPI durante la publicación.

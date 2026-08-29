@@ -4,8 +4,9 @@ Fecha: 2026-08-28
 
 Tarjeta: `release-alpha2-preparation`
 
-Artefacto revisado: `epistates-0.1.0a2-py3-none-any.whl`, construido desde
-`0858c6c5abbd7070cb9863cfd3e77e31a77c54ad`.
+Artefacto final revisado: `epistates-0.1.0a2-py3-none-any.whl`, construido desde
+`08c925f483fd7db82337f54e42d1ce7f1b35e6c8`, tamaño `130899` y SHA-256
+`6a73a7f53dc691722d6221acb40769a2d916cfd40ed7352460b80110bba4014a`.
 
 Estado inicial: **PENDIENTE DEL GATE FINAL**.
 
@@ -61,6 +62,6 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
 - E4 sigue siendo superficie interna experimental; superar el gate de paquete
   no autoriza conectarlo a un runtime ni despertar agentes.
 
-**PROCEED para tag y prerelease GitHub si el wheel final reconstruido conserva
-reproducibilidad y smoke verde. PyPI queda fuera de alcance. E4 permanece
-inactivo.**
+**PROCEED cerrado: el tag apunta al SHA revisado y la prerelease GitHub contiene
+exactamente el wheel validado y su checksum. PyPI quedó fuera de alcance y E4
+permanece inactivo.**
