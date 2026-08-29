@@ -1,0 +1,66 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-opencode-health-preflight",
+  "objective": "Verificar una sola vez el transporte HTTP productivo de Epistates contra GET /global/health de un servidor OpenCode 1.18.25 efímero, autenticado y ligado a 127.0.0.1, sin sesión, prompt, inferencia, wake ni endpoint adicional.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "a035531fd0682eff0aac6ba1212b6149fb5a31b9",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "qa",
+  "authority": {
+    "grant_id": "maintainer-e4-opencode-health-preflight",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-opencode-health-preflight.task-card.json",
+    "docs/adversarial-e4-opencode-health-preflight.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "src/epistates/opencode_http.py",
+    "docs/architecture/0011-transporte-http-opencode.md",
+    "opencode.json",
+    "OpenCode 1.18.25 local executable"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo las tres rutas documentales E4-L"},
+    {"check_id": "unit_tests", "expected": "exit 0"},
+    {"check_id": "diff_check", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Evidencia saneada de un único GET autenticado /global/health mediante OpenCodeSubmissionTransport contra un servidor efímero 1.18.25 en loopback. La contraseña se genera por proceso, no se imprime ni persiste; el servidor y listener terminan al concluir.",
+  "stop_condition": "Detenerse ante listener no numérico 127.0.0.1, versión distinta de 1.18.25, ausencia de autenticación, endpoint distinto de /global/health, método distinto de GET, segundo request, sesión, prompt, inferencia, wake, credencial persistida, respuesta no acotada o cambio de código.",
+  "new_decision_required_for": [
+    "GET /agent, /provider o cualquier endpoint adicional",
+    "sesión o prompt real",
+    "inferencia o wake",
+    "wiring runtime o polling",
+    "credenciales persistentes",
+    "cambio de código o API pública",
+    "release",
+    "commit",
+    "push"
+  ]
+}

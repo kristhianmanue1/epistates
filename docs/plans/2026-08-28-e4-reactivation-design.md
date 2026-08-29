@@ -95,6 +95,15 @@ TAREA EPI-E4-001-K — transportes HTTP OpenCode separados
     wiring runtime, socket real, servidor, sesión, credencial ni prompt.
   ADR: [ADR-0011](../architecture/0011-transporte-http-opencode.md).
   Tarjeta: [e4-opencode-http-transport](2026-08-28-e4-opencode-http-transport.task-card.json).
+
+TAREA EPI-E4-001-L — preflight HTTP health-only
+  Produce: evidencia de una única consulta autenticada GET /global/health del
+    transporte productivo contra OpenCode 1.18.25 efímero en 127.0.0.1.
+  Estado: ejecutado y aceptado tras
+    [ronda adversarial](../adversarial-e4-opencode-health-preflight.md); sesión,
+    prompt, inferencia, wake, polling, wiring runtime, commit, push y release
+    siguen bloqueados.
+  Tarjeta: [e4-opencode-health-preflight](2026-08-28-e4-opencode-health-preflight.task-card.json).
 ```
 
 ## Definition of Done del diseño
