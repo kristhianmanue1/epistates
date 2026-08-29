@@ -305,15 +305,25 @@ class WakeSubmissionCoordinatorTests(unittest.TestCase):
         def transport(method, path, body):
             calls.append((method, path, body))
             if path == "/global/health":
-                return {"healthy": True, "version": "1.18.23"}
+                return {"healthy": True, "version": "1.18.25"}
             if path == "/agent":
-                return [{"name": "epistates-inspect"}]
+                return [{
+                    "name": "epistates-inspect", "mode": "primary",
+                    "model": {"providerID": "zai", "modelID": "glm-5.2"},
+                    "permission": [
+                        {"permission": "*", "pattern": "*", "action": "deny"},
+                        {"permission": "external_directory", "pattern": "*", "action": "deny"},
+                        {"permission": "external_directory",
+                         "pattern": "/Users/test/.local/share/opencode/tool-output/*",
+                         "action": "allow"},
+                    ],
+                }]
             if path.endswith("/prompt_async"):
                 return None
             raise AssertionError(path)
 
         port = OpenCodeWakePort(
-            "http://127.0.0.1:4096", provider_version="1.18.23",
+            "http://127.0.0.1:4096", provider_version="1.18.25",
             agent_id="epistates-inspect", model_id="glm-5.2",
             transport=transport,
         )

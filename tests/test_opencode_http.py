@@ -134,7 +134,17 @@ class OpenCodeHTTPTransportTests(unittest.TestCase):
             ("GET", "/global/health"):
                 FakeResponse({"healthy": True, "version": "1.18.25"}),
             ("GET", "/agent"):
-                FakeResponse([{"name": "epistates-inspect"}]),
+                FakeResponse([{
+                    "name": "epistates-inspect", "mode": "primary",
+                    "model": {"providerID": "zai", "modelID": "glm-5.2"},
+                    "permission": [
+                        {"permission": "*", "pattern": "*", "action": "deny"},
+                        {"permission": "external_directory", "pattern": "*", "action": "deny"},
+                        {"permission": "external_directory",
+                         "pattern": "/Users/test/.local/share/opencode/tool-output/*",
+                         "action": "allow"},
+                    ],
+                }]),
             ("POST", "/session/ses-one/prompt_async"):
                 FakeResponse(status=204, raw=b"", headers={}),
         }

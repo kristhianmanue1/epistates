@@ -119,6 +119,15 @@ TAREA EPI-E4-001-M — preflight de configuración efectiva del agente
     Sesión, prompt, inferencia, wake, polling, cambios de configuración, commit,
     push y release siguen bloqueados.
   Tarjeta: [e4-opencode-agent-preflight](2026-08-28-e4-opencode-agent-preflight.task-card.json).
+
+TAREA EPI-E4-001-N — validación ordenada de permisos efectivos
+  Produce: capabilities fail-closed sobre identidad, modo, modelo, deny global
+    tardío y tail cerrado; sólo admite la excepción interna de truncado acotada.
+  Estado: implementación interna aceptada tras
+    [ronda adversarial](../adversarial-e4-opencode-effective-permissions.md);
+    red, servidor, sesión, prompt, wake real y wiring runtime siguen bloqueados.
+  ADR: [ADR-0012](../architecture/0012-permisos-efectivos-opencode.md).
+  Tarjeta: [e4-opencode-effective-permissions](2026-08-28-e4-opencode-effective-permissions.task-card.json).
 ```
 
 ## Definition of Done del diseño

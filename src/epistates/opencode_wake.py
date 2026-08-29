@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import posixpath
 import re
 from typing import Any, Callable, Mapping, Optional
 from urllib.parse import urlparse
@@ -12,6 +13,67 @@ _NONCE = re.compile(r"[0-9a-f]{32}")
 _GLM_MODEL = re.compile(r"glm-[a-z0-9.-]{2,80}")
 _VERSION = re.compile(r"[0-9][A-Za-z0-9._-]{0,63}")
 _PROMPT = "Controller requested a read-only status check. Do not execute commands or modify files."
+_PERMISSION_NAME = re.compile(r"[A-Za-z0-9_.*-]{1,128}")
+_MAX_PERMISSION_RULES = 256
+
+
+def _safe_rule(rule: object) -> bool:
+    if type(rule) is not dict or set(rule) != {"permission", "pattern", "action"}:
+        return False
+    permission = rule.get("permission")
+    pattern = rule.get("pattern")
+    action = rule.get("action")
+    return bool(
+        isinstance(permission, str) and
+        _PERMISSION_NAME.fullmatch(permission) is not None and
+        isinstance(pattern, str) and 1 <= len(pattern) <= 1024 and
+        not any(ord(character) < 32 or ord(character) == 127 for character in pattern) and
+        action in {"allow", "ask", "deny"}
+    )
+
+
+def _internal_truncation_rule(rule: dict) -> bool:
+    pattern = rule["pattern"]
+    if (rule["permission"] != "external_directory" or
+            rule["action"] != "allow" or not pattern.startswith("/") or
+            not pattern.endswith("/opencode/tool-output/*") or
+            pattern.count("*") != 1 or any(token in pattern for token in ("?", "[", "]", "\\", "%2e", "%2E"))):
+        return False
+    base = pattern[:-2]
+    return posixpath.normpath(base) == base and ".." not in base.split("/")
+
+
+def _effective_agent_supported(agents: object, *, agent_id: str,
+                               model_id: str) -> bool:
+    """Valida el ruleset ordenado de OpenCode 1.18.25 sin ejecutar efectos."""
+    if type(agents) is not list:
+        return False
+    matches = [item for item in agents
+               if type(item) is dict and item.get("name") == agent_id]
+    if len(matches) != 1:
+        return False
+    agent = matches[0]
+    model = agent.get("model")
+    rules = agent.get("permission")
+    if (agent.get("mode") != "primary" or type(model) is not dict or
+            set(model) != {"providerID", "modelID"} or
+            model.get("providerID") != "zai" or model.get("modelID") != model_id or
+            type(rules) is not list or not 1 <= len(rules) <= _MAX_PERMISSION_RULES or
+            not all(_safe_rule(rule) for rule in rules)):
+        return False
+
+    global_denies = [index for index, rule in enumerate(rules)
+                     if rule == {"permission": "*", "pattern": "*", "action": "deny"}]
+    if not global_denies:
+        return False
+    tail = rules[global_denies[-1] + 1:]
+    external_deny = {"permission": "external_directory", "pattern": "*",
+                     "action": "deny"}
+    if not tail:
+        return True
+    if tail[0] != external_deny or len(tail) > 2:
+        return False
+    return len(tail) == 1 or _internal_truncation_rule(tail[1])
 
 
 def _message_id(nonce: str) -> str:
@@ -46,8 +108,7 @@ class OpenCodeWakePort:
         if (parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"} or
                 parsed.username is not None or parsed.password is not None or
                 parsed.path not in {"", "/"} or parsed.query or parsed.fragment or
-                not isinstance(provider_version, str) or
-                not _VERSION.fullmatch(provider_version) or
+                provider_version != "1.18.25" or
                 not isinstance(agent_id, str) or not _SESSION_ID.fullmatch(agent_id) or
                 not isinstance(model_id, str) or not _GLM_MODEL.fullmatch(model_id) or
                 not callable(transport) or
@@ -84,18 +145,23 @@ class OpenCodeWakePort:
         }
 
     def capabilities(self) -> str:
-        """Comprueba sólo health y la existencia del agente configurado."""
+        """Comprueba health y el perfil efectivo deny-by-default del agente."""
         try:
             health = self._transport("GET", "/global/health", None)
             agents = self._transport("GET", "/agent", None)
         except Exception:
             return "failed"
-        if (not isinstance(health, Mapping) or health.get("healthy") is not True or
-                health.get("version") != self._provider_version):
-            return "unsupported"
-        if not isinstance(agents, list) or not any(
-                isinstance(item, Mapping) and item.get("name") == self._agent_id
-                for item in agents):
+        try:
+            supported = (
+                type(health) is dict and
+                health.get("healthy") is True and
+                health.get("version") == self._provider_version and
+                _effective_agent_supported(
+                    agents, agent_id=self._agent_id, model_id=self._model_id)
+            )
+        except Exception:
+            supported = False
+        if not supported:
             return "unsupported"
         return "supported"
 

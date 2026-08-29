@@ -1,0 +1,71 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-opencode-effective-permissions",
+  "objective": "Hacer que OpenCodeWakePort valide la configuración efectiva ordenada de epistates-inspect: identidad, modo, modelo, deny global tardío y ninguna reapertura de herramientas; permitir sólo la excepción interna acotada de truncado de OpenCode, sin red, sesión, prompt ni wake real.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "4573ed1c214ca3fff7dfb517ebc9c07fb9c77fff",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-opencode-effective-permissions",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/opencode_wake.py",
+    "tests/test_opencode_wake.py",
+    "tests/test_opencode_http.py",
+    "tests/test_wake_delivery.py",
+    "docs/architecture/0012-permisos-efectivos-opencode.md",
+    "docs/architecture/README.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-opencode-effective-permissions.task-card.json",
+    "docs/adversarial-e4-opencode-effective-permissions.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/adversarial-e4-opencode-agent-preflight.md",
+    "docs/architecture/0008-opencode-wake-port.md",
+    "src/epistates/opencode_wake.py",
+    "OpenCode 1.18.25 agent and permission source"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo las nueve rutas E4-N"},
+    {"check_id": "unit_tests", "expected": "exit 0"},
+    {"check_id": "diff_check", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Validador interno fail-closed integrado en capabilities(): un agente exacto, primary, zai/modelo exacto, reglas estructuralmente acotadas, deny global tardío y tail cerrado. Después del deny sólo se admite external_directory deny global y, opcionalmente, un único allow específico absoluto terminado en /opencode/tool-output/*. Todas las pruebas usan transporte inyectado.",
+  "stop_condition": "Detenerse ante necesidad de inspeccionar paths reales, aceptar allow de herramienta, relajar identidad/modelo, usar red o credenciales, iniciar servidor/sesión, enviar prompt, modificar opencode.json, activar runtime o exportar API pública.",
+  "new_decision_required_for": [
+    "cambio de opencode.json",
+    "servidor, sesión o prompt real",
+    "wake o wiring runtime",
+    "red o credenciales",
+    "cambio de API pública",
+    "release",
+    "commit",
+    "push"
+  ]
+}

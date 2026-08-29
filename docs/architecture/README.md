@@ -23,3 +23,9 @@ sustituye o acota con referencia explícita.
   Z.ai configurado en OpenCode; sólo simulado.
 - [ADR-0009](0009-entrega-wake-asincrona.md): ciclo durable y monotónico para
   distinguir reserva, envío, finalización, fallo y ambigüedad; sólo diseño.
+- [ADR-0010](0010-correlacion-terminal-opencode.md): correlación exacta por
+  nonce/messageID y observación terminal fail-closed.
+- [ADR-0011](0011-transporte-http-opencode.md): transportes HTTP loopback
+  separados para lectura y submission.
+- [ADR-0012](0012-permisos-efectivos-opencode.md): validación ordenada del
+  ruleset de agente y excepción interna de truncado acotada.
