@@ -104,6 +104,21 @@ TAREA EPI-E4-001-L — preflight HTTP health-only
     prompt, inferencia, wake, polling, wiring runtime, commit, push y release
     siguen bloqueados.
   Tarjeta: [e4-opencode-health-preflight](2026-08-28-e4-opencode-health-preflight.task-card.json).
+
+TAREA EPI-E4-001-M — preflight de configuración efectiva del agente
+  Produce: health y metadatos saneados de GET /agent, con bloqueo ante cualquier
+    permiso efectivo allow/ask aunque el archivo local declare deny.
+  Estado: diagnóstico técnico obtenido, cierre formal parcial y activación
+    bloqueada tras
+    [ronda adversarial](../adversarial-e4-opencode-agent-preflight.md): el agente
+    y modelo coinciden y el deny global bloquea herramientas, pero OpenCode
+    añade después una excepción específica `external_directory`; esto incumple
+    el criterio literal deny-only de la tarjeta aunque no demuestre una
+    herramienta ejecutable. Dos intentos correctivos excedieron además el total
+    literal de dos GET de la tarjeta.
+    Sesión, prompt, inferencia, wake, polling, cambios de configuración, commit,
+    push y release siguen bloqueados.
+  Tarjeta: [e4-opencode-agent-preflight](2026-08-28-e4-opencode-agent-preflight.task-card.json).
 ```
 
 ## Definition of Done del diseño
