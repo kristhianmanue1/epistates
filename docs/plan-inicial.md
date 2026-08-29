@@ -579,11 +579,11 @@ Git y preparación de release requieren autoridad separada.
 
 ## H4 — Agent-safe discovery and misuse resistance
 
-**Estado:** requerido antes de publicar Epistates como herramienta destinada a
-agentes de IA. Slice1–Slice3 aceptados; **H4 cerrado localmente (2026-08-12)**
+**Estado actual:** Slice1–Slice3 aceptados; **H4 cerrado localmente (2026-08-12)**
 tras gate reproducible y revisión adversarial final C1 con decisión `PROCEED` y
 cero hallazgos P0/P1/P2. La prerelease GitHub `v0.1.0-alpha.1` está publicada;
-PyPI permanece sin publicar. H1–H3 no se reabren.
+`v0.1.0-alpha.2` también está publicada tras su gate independiente. PyPI
+permanece sin publicar. H1–H3 no se reabren.
 
 H4 no amplía autoridad ni añade automatización operativa. Su objetivo es que un
 agente pueda descubrir la superficie instalada sin confundir propiedades que
@@ -704,8 +704,8 @@ JSON profundo, `RecursionError`, claves duplicadas, UTF-8 inválido y cambios
 ambiguos de entrada. Rutas con LF, ANSI o Unicode hostil nunca contaminan salida
 machine-readable. Ninguna respuesta de validación concede autoridad.
 
-**Estado de Slice2: implementado; pendiente de revisión adversarial fresca.**
-No aceptado; no autoriza commit ni release.
+**Estado intermedio de Slice2 antes de C2:** implementado y pendiente de
+revisión adversarial fresca; todavía no aceptado ni habilitante de release.
 
 DoD ejecutable cubierto por la implementación:
 
@@ -792,7 +792,8 @@ adversarial fresca C2 con decisión `PROCEED`. Se corrigieron la clasificación
 específica `invalid_utf8` para `message-file` y la equivalencia entre el
 pre-scan de formato y la semántica last-wins de argparse, incluidas apariciones
 duplicadas e incompletas. La suite aceptada contiene 84 pruebas focales; H4
-completo y el release permanecen abiertos.
+completo y el release permanecían abiertos. El cierre posterior de H4 y las
+prereleases publicadas se registran en el encabezado y en sus gates.
 
 Riesgos residuales reservados a Slice3/gate (no tratados como hechos):
 

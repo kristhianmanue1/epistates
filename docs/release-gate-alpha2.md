@@ -111,3 +111,18 @@ el wheel remoto tamaño `130899` y digest
 `sha256:6a73a7f53dc691722d6221acb40769a2d916cfd40ed7352460b80110bba4014a`,
 idénticos al artefacto local validado. También se adjuntó el archivo `.sha256`.
 No se consultó ni modificó PyPI durante la publicación.
+
+## Verificación posrelease de consumidor
+
+Los activos se descargaron nuevamente mediante `gh release download` a un
+directorio temporal sin usar el wheel de build. El `.sha256` remoto validó el
+wheel descargado (`OK`), cuyo tamaño fue `130899` bytes. Se instaló con
+`pip --no-deps` en un venv nuevo Python 3.12.12 fuera del checkout y sin
+`PYTHONPATH`; import/version, `--help`, `--version`, `describe`, `schema list`,
+`schema show` y validación del artefacto mínimo empaquetado pasaron. Esto cierra
+la ruta release remota → descarga → checksum → instalación → consumo.
+
+La revisión adversarial de este cierre confirmó que sólo cambiaron documentos,
+que ninguna afirmación histórica se reescribió como autorización vigente y que
+E4-O aparece únicamente como propuesta no autorizada. No se modificaron el tag,
+la release, sus activos, runtime, tests ni configuración de activación.

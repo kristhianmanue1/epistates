@@ -1,0 +1,62 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "post-release-reconciliation",
+  "objective": "Cerrar la verificación de consumidor de v0.1.0-alpha.2 y reconciliar estados documentales históricos de H4/E4, sin modificar runtime, tag, release, activos publicados ni activar wake.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "04fa12ac845d3f60c9faa06eb84440cc1d057b07",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "documenter",
+  "authority": {
+    "grant_id": "maintainer-post-release-reconciliation",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "docs/release-gate-alpha2.md",
+    "docs/plan-inicial.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-post-release-reconciliation.task-card.json"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/release-gate-alpha2.md",
+    "docs/plan-inicial.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "sólo cuatro rutas documentales permitidas"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "no requerido: sin cambios de runtime; validación contractual y enlaces exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Prueba de consumidor desde activos remotos registrada y estados H4/E4 reconciliados como histórico, implementación interna y activación. E4-O queda sólo propuesto y bloqueado.",
+  "stop_condition": "Detenerse ante cambio de src/tests/schema, modificación de tag/release/activos, nuevo wake, daemon, polling, sesión, red de proveedor o afirmación no respaldada por evidencia.",
+  "new_decision_required_for": [
+    "implementar E4-O",
+    "activar E4",
+    "wake real",
+    "modificar la release",
+    "nuevo corte de versión"
+  ]
+}

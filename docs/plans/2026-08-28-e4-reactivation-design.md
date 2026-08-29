@@ -1,6 +1,8 @@
 # PLAN EPI-E4-001 — diseño de reactivación soportada
 
-**Estado:** diseño autorizado; implementación y activación bloqueadas. **ADR:** [ADR-0007](../architecture/0007-reactivacion-soportada.md).
+**Estado actual:** diseño y primitivas internas C–N implementadas/auditadas;
+integración runtime, automatización y activación permanecen bloqueadas.
+**ADR:** [ADR-0007](../architecture/0007-reactivacion-soportada.md).
 
 ## Invariantes
 
@@ -31,19 +33,20 @@ TAREA EPI-E4-001-C — guard persistente sin efecto externo
   Estado: implementado y aceptado para reserva local inerte tras
     [ronda adversarial](../adversarial-e4-wake-guard.md).
 
-TAREA EPI-E4-001-D — adaptador de proveedor (bloqueada)
-  Requiere: autorización explícita nueva, proveedor público elegido, capabilities
-  verificables y ronda adversarial fresca del código final.
-  Prohibido: red, credenciales, wake real o reactivación hasta entonces.
-  Estado: puerto OpenCode simulado y limitado por la
-    [task-card](2026-08-28-e4-opencode-port.task-card.json); activación sigue bloqueada.
+TAREA EPI-E4-001-D — adaptador de proveedor
+  Requisitos originales: autorización explícita, proveedor público elegido,
+    capabilities verificables y ronda adversarial fresca del código final.
+  Prohibido en el corte original: red, credenciales, wake real o reactivación.
+  Estado: OpenCode 1.18.25 elegido y sus puertos/transportes internos cerrados
+    en K–N; activación, wiring runtime y wake real siguen bloqueados.
 
 TAREA EPI-E4-001-E — ciclo durable de entrega asíncrona
   Produce: ADR-0009, threat model actualizado, tarjeta y ronda adversarial.
   [x] Separar reserved, submitting, submitted, completed, failed y ambiguous.
   [x] Fijar transiciones monotónicas, crash windows y reconciliación sin retry.
   [x] Declarar que HTTP 204 sólo acredita submitted.
-  Estado: diseño cerrado; implementación, integración y wake bloqueados.
+  Estado: diseño cerrado e implementado por los cortes F–H; integración runtime
+    y wake real bloqueados.
   Tarjeta: [e4-delivery-lifecycle](2026-08-28-e4-delivery-lifecycle.task-card.json).
 
 TAREA EPI-E4-001-F — ledger durable local
@@ -134,5 +137,15 @@ TAREA EPI-E4-001-N — validación ordenada de permisos efectivos
 
 - ADR, threat model y revisión distinguen señal, correlación, autorización y efecto externo.
 - La tarjeta se valida y los enlaces locales son correctos.
-- Ningún documento presenta E4 como implementado o habilitado.
-- La siguiente tarea debe fijar proveedor, persistencia y pruebas de recuperación.
+- Los documentos distinguen primitivas internas implementadas de runtime
+  integrado, observado y autorizado; E4 nunca se presenta como habilitado.
+- El siguiente corte debe fijar wiring, autoridad del operador, recuperación y
+  stop rules sin inferir activación de las primitivas existentes.
+
+## Próximo corte propuesto — E4-O (no autorizado)
+
+Definir exclusivamente el contrato de wiring runtime, todavía apagado por
+defecto: operador/authority binding, comprobación del kill switch antes y
+después, un único intento manual, recuperación ante resultado ambiguo y rollback
+sin retry. Implementación, daemon, polling, sesión automática y wake real
+requieren una tarjeta y autorización nuevas.
