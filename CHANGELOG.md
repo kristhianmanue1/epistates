@@ -11,14 +11,13 @@ versionado del paquete sigue [PEP 440](https://peps.python.org/pep-0440/).
 
 ## [Unreleased]
 
-No hay cambios posteriores a la candidata `0.1.0-alpha.2`. La candidata sigue
-sin tag ni publicación; cualquier release requiere autoridad separada.
+No hay cambios posteriores a `0.1.0-alpha.2`.
 
-## [0.1.0-alpha.2] - Unreleased
+## [0.1.0-alpha.2] - 2026-08-28
 
-Candidata experimental posterior a alpha.1. **No está publicada**: la versión
-PEP 440 es `0.1.0a2`, pero el tag humano `v0.1.0-alpha.2` no existe mientras el
-mantenedor no autorice el gate final y las operaciones de publicación.
+Segunda prerelease experimental, publicada exclusivamente en GitHub. La versión
+PEP 440 es `0.1.0a2` y el tag humano es `v0.1.0-alpha.2`. PyPI permanece fuera
+de alcance y sin publicar.
 
 ### Added
 

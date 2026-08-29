@@ -1,9 +1,9 @@
 # Epistates
 
 **Estado:** H1–H4 y E3 cerrados; E4 interno sin activar · **Madurez:** experimental
-**Versión candidata del paquete:** `0.1.0a2` (**no publicada**) ·
+**Versión del paquete:** `0.1.0a2` ·
 **Última prerelease GitHub publicada:**
-[`v0.1.0-alpha.1`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1).
+[`v0.1.0-alpha.2`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.2).
 
 > Registro histórico 2026-08-11: los hitos H1 (contrato `task-card/v1` y validador
 > read-only), H2 (resultado de auditoría y máquina de estados) y H3 (adaptador
@@ -18,16 +18,16 @@
 
 > **Software experimental.** Epistates es un alpha sin garantías: la API, los
 > contratos y el CLI pueden cambiar sin previo aviso. **No existe versión
-> estable publicada**; `0.1.0a1` está publicada únicamente como prerelease
-> alpha de GitHub y `0.1.0a2` sigue siendo una candidata local. Ninguna implica
-> estabilidad ni compatibilidad futura.
+> estable publicada**; `0.1.0a1` y `0.1.0a2` están publicadas únicamente como
+> prereleases alpha de GitHub. Ninguna implica estabilidad ni compatibilidad
+> futura.
 
 ## Instalación
 
-Epistates no está publicado en PyPI. Para evaluar la candidata local `0.1.0a2`,
-construye el wheel de forma reproducible y instálalo en un venv limpio. El
-paquete **no tiene dependencias de ejecución** y se construye sin aislamiento
-ni red:
+Epistates no está publicado en PyPI. Para evaluar `0.1.0a2`, descarga el wheel
+de la prerelease GitHub o constrúyelo de forma reproducible e instálalo en un
+venv limpio. El paquete **no tiene dependencias de ejecución** y se construye
+sin aislamiento ni red:
 
 ```bash
 # desde la raíz del repositorio, con un Python >=3.9

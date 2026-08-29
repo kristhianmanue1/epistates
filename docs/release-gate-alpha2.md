@@ -1,11 +1,11 @@
 # Release Gate — Epistates 0.1.0-alpha.2
 
 **Versión PEP 440:** `0.1.0a2` · **Tag futuro:** `v0.1.0-alpha.2`
-**Estado:** candidata local en preparación; **NO PUBLICADA**.
+**Estado:** gate `PROCEED`; prerelease GitHub autorizada. PyPI fuera de alcance.
 
 Este gate certifica exclusivamente el corte alpha.2. El cierre histórico de
-alpha.1 permanece en [`release-gate.md`](release-gate.md). Pasar este gate no
-autoriza tag, GitHub Release ni PyPI.
+alpha.1 permanece en [`release-gate.md`](release-gate.md). El mantenedor
+autorizó tag y GitHub Release; decidió explícitamente no publicar en PyPI.
 
 ## Alcance funcional del corte
 
@@ -103,8 +103,8 @@ macOS arm64 + Linux arm64 con Python 3.9 y 3.12. El workflow no aporta evidencia
 
 El gate técnico local multiplataforma de la candidata está **PROCEED**. La ronda adversarial
 final está en [`adversarial-release-0.1.0-alpha.2.md`](adversarial-release-0.1.0-alpha.2.md).
-El mantenedor autorizó continuar hacia tag, GitHub Release y PyPI. El preflight
-confirmó que el tag/release no existen y que PyPI no tiene un proyecto
-`epistates`, pero no encontró credencial PyPI local. Para evitar publicación
-parcial, las tres operaciones quedan **BLOCKED por autenticación** hasta que
-`UV_PUBLISH_TOKEN` esté disponible; nunca debe registrarse su valor.
+El mantenedor autorizó tag y GitHub Release y excluyó PyPI. El preflight
+confirmó que el tag/release `v0.1.0-alpha.2` no existen y que `gh` dispone de
+autenticación administrativa. El artefacto final debe reconstruirse desde el
+commit de release, repetir reproducibilidad/smoke y coincidir exactamente con
+el wheel que se adjunte.

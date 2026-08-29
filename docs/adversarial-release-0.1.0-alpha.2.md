@@ -50,8 +50,8 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
   corrección está limitada a tests y la matriz completa volvió a verde.
 - **GitHub rojo interpretado como fallo:** refutado. El run `33225053925` no
   ejecutó steps por límite de uso/facturación; no es evidencia del código.
-- **Release inferido:** refutado. No existe autorización en esta tarjeta para
-  tag, GitHub Release ni PyPI y ninguna de esas operaciones se ejecutó.
+- **Alcance de publicación ampliado por inercia:** refutado. El mantenedor
+  autorizó sólo tag y GitHub Release; PyPI quedó explícitamente fuera.
 
 ### Riesgos residuales
 
@@ -61,7 +61,6 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
 - E4 sigue siendo superficie interna experimental; superar el gate de paquete
   no autoriza conectarlo a un runtime ni despertar agentes.
 
-**PROCEED técnico para la candidata local. El mantenedor autorizó publicación,
-pero el preflight no encontró credencial PyPI. BLOCKED para tag, GitHub Release
-y PyPI hasta disponer de `UV_PUBLISH_TOKEN`, evitando un release parcial. E4
-permanece inactivo.**
+**PROCEED para tag y prerelease GitHub si el wheel final reconstruido conserva
+reproducibilidad y smoke verde. PyPI queda fuera de alcance. E4 permanece
+inactivo.**

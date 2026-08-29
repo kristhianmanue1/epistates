@@ -1,8 +1,8 @@
 # Plan inicial — E1 contratos y conformidad
 
-**Estado:** H1–H4 y E3 cerrados; E4 interno sin activar. **Prerelease GitHub
-`v0.1.0-alpha.1` publicada el 2026-08-12; candidata local
-`0.1.0-alpha.2` en preparación y NO PUBLICADA.** PyPI permanece sin publicar.
+**Estado:** H1–H4 y E3 cerrados; E4 interno sin activar. **Prereleases GitHub
+`v0.1.0-alpha.1` publicada el 2026-08-12 y `v0.1.0-alpha.2` publicada el
+2026-08-28.** PyPI permanece fuera de alcance y sin publicar.
 El gate histórico está en [`release-gate.md`](release-gate.md) y el nuevo en
 [`release-gate-alpha2.md`](release-gate-alpha2.md).
 **Fecha:** 2026-08-11. **Fuente:** definición fundacional y protocolo técnico
