@@ -21,7 +21,8 @@ autoriza tag, GitHub Release ni PyPI.
 
 1. Árbol y diff acotados; tarjeta válida; enlaces y secretos revisados.
 2. Suite completa en Python 3.9 y 3.12.
-3. CI GitHub en macOS/Linux × Python 3.9/3.12.
+3. CI local en macOS con Python 3.9/3.12. La matriz GitHub macOS/Linux se
+   conserva para ejecución manual y revalidación cuando vuelva la cuota.
 4. Versión single-source `0.1.0a2` coherente con metadata y wheel.
 5. Dos copias fuente independientes construidas con el mismo
    `SOURCE_DATE_EPOCH`; wheel byte-idéntico por nombre, tamaño y SHA-256.
@@ -34,6 +35,14 @@ autoriza tag, GitHub Release ni PyPI.
 
 ## Evidencia
 
-Pendiente. Se completará con SHA de candidata, epoch, hashes, inventario,
-resultados CI/smoke y riesgos residuales. Hasta entonces el veredicto es
-`BLOCKED` para release.
+El run GitHub Actions
+[`33225053925`](https://github.com/kristhianmanue1/epistates/actions/runs/33225053925)
+no inició ningún step: GitHub lo bloqueó por límite de uso/facturación. Por
+decisión explícita del mantenedor, ese bloqueo es una limitación externa, no un
+fallo del código. Para este corte, la evidencia autoritativa será la suite local
+en macOS con Python 3.9 y 3.12. Linux queda **NO VERIFICADO** y no debe inferirse
+del workflow preparado.
+
+El resto de la evidencia está pendiente. Se completará con SHA de candidata,
+epoch, hashes, inventario, resultados locales/smoke y riesgos residuales. Hasta
+entonces el veredicto es `BLOCKED` para release.

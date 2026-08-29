@@ -30,7 +30,8 @@ mantenedor no autorice el gate final y las operaciones de publicación.
   loopback numérico, límites de bytes/JSON, correlación messageID y validación
   ordenada de permisos efectivos.
 - Manifiesto de proyecto y prácticas ADRC/Skevi adoptadas de forma acotada.
-- CI para macOS/Linux sobre Python 3.9 y 3.12.
+- Gate local en macOS sobre Python 3.9 y 3.12; matriz GitHub macOS/Linux
+  preservada para ejecución manual cuando vuelva la cuota.
 
 ### Security and governance
 

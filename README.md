@@ -142,7 +142,9 @@ inicia un adaptador.
 ## Compatibilidad de plataforma
 
 - **Validación pura y runtime local inerte:** Python >=3.9. La candidata
-  alpha.2 se verifica en CI sobre macOS/Linux y Python 3.9/3.12; eso no promete
+  alpha.2 se verifica localmente en macOS sobre Python 3.9/3.12. La matriz
+  GitHub macOS/Linux queda manual hasta recuperar cuota; Linux no está
+  verificado por este corte. Eso no promete
   automáticamente todas las versiones intermedias ni Windows.
 - **Adaptador `opencode-tmux/v1`** (observación, entrega literal, captura):
   requiere macOS o Linux porque depende de `tmux`. **Windows no está soportado**

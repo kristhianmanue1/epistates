@@ -1,7 +1,7 @@
 {
   "schema": "epistates/task-card/v1",
   "task_id": "release-alpha2-preparation",
-  "objective": "Preparar una candidata local 0.1.0a2 honesta y reproducible con changelog, onboarding, gate, CI macOS/Linux y smoke Python 3.9/3.12, manteniendo E4 inactivo y sin crear tag, GitHub Release ni publicación PyPI.",
+  "objective": "Preparar una candidata local 0.1.0a2 honesta y reproducible con changelog, onboarding, gate y CI local macOS en Python 3.9/3.12, manteniendo E4 inactivo y sin crear tag, GitHub Release ni publicación PyPI. La matriz GitHub macOS/Linux queda manual y diferida hasta recuperar cuota.",
   "target": {
     "repository": "epistates",
     "base_sha": "8114f93f97bd4557115ddb952cd282ff93dad097",
@@ -61,8 +61,8 @@
     "report_format": "rag/v1",
     "required": ["worktree_status", "diff_check", "check_results"]
   },
-  "delivery": "Versión 0.1.0a2 single-source, changelog/README/onboarding coherentes, digest actualizado, CI de tests en macOS y Linux con Python 3.9/3.12, dos wheels byte-idénticos, instalación aislada y smoke en ambos Python, inventario y revisión adversarial final. E4 se declara interno e inactivo.",
-  "stop_condition": "Detenerse ante intento de tag/release/PyPI, necesidad de credenciales, dependencia externa nueva, fallo CI, wheels divergentes, smoke fallido, secreto, E4 presentado como activo o cambio funcional fuera de versionado/onboarding/release plumbing.",
+  "delivery": "Versión 0.1.0a2 single-source, changelog/README/onboarding coherentes, digest actualizado, CI local macOS con Python 3.9/3.12, workflow manual macOS/Linux preservado para revalidación posterior, dos wheels byte-idénticos, instalación aislada y smoke en ambos Python, inventario y revisión adversarial final. E4 se declara interno e inactivo.",
+  "stop_condition": "Detenerse ante intento de tag/release/PyPI, necesidad de credenciales, dependencia externa nueva, fallo de CI local, wheels divergentes, smoke fallido, secreto, E4 presentado como activo o cambio funcional fuera de versionado/onboarding/release plumbing. Un job GitHub no iniciado por cuota no es fallo del código y debe registrarse como limitación externa.",
   "new_decision_required_for": [
     "corregir código funcional por fallo del gate",
     "dependencia nueva",
@@ -70,6 +70,7 @@
     "GitHub Release",
     "publicación PyPI",
     "activar E4",
-    "cambiar soporte de plataforma"
+    "cambiar soporte de plataforma",
+    "reactivar CI automática o aceptar GitHub/Linux como evidencia"
   ]
 }

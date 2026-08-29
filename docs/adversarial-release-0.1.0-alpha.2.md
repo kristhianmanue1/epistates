@@ -13,7 +13,8 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
 - inventario obsoleto de módulos o package-data;
 - wheel único presentado como reproducible;
 - import accidental desde checkout/PYTHONPATH durante smoke;
-- diferencias Python 3.9/3.12 o macOS/Linux no evidenciadas;
+- diferencias Python 3.9/3.12 no evidenciadas o Linux presentado como verificado
+  pese a que la cuota impidió iniciar los jobs GitHub;
 - documentación empaquetada obsoleta o digest inconsistente;
 - E4 interno presentado como wake activo;
 - tag/release/PyPI inferidos de tests verdes;
@@ -21,4 +22,7 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
 
 ## Veredicto
 
-Pendiente de builds, smoke, CI y revisión del artefacto final.
+Pendiente de builds, smoke, CI local y revisión del artefacto final. El run
+GitHub `33225053925` quedó bloqueado antes de ejecutar steps por límite de uso;
+no certifica ni refuta el código. La matriz macOS/Linux queda manual y Linux se
+declara no verificado para este corte.
