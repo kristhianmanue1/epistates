@@ -1,0 +1,75 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-opencode-http-transport",
+  "objective": "Implementar transportes HTTP productivos separados para observación GET-only y submission OpenCode sobre 127.0.0.1, Basic Auth obligatorio, timeout, límite de bytes y JSON estricto, probados sin red, servidor, sesión ni prompt real.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "2a46b069c5ccf6411447d3e3c4635e6f7a5154da",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-opencode-http-transport",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/opencode_http.py",
+    "src/epistates/opencode_wake.py",
+    "src/epistates/opencode_observer.py",
+    "tests/test_opencode_http.py",
+    "tests/test_opencode_wake.py",
+    "tests/test_opencode_observer.py",
+    "docs/architecture/0011-transporte-http-opencode.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-opencode-http-transport.task-card.json",
+    "docs/adversarial-e4-opencode-http-transport.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/architecture/0010-correlacion-terminal-opencode.md",
+    "docs/adversarial-e4-opencode-terminal-observer.md",
+    "src/epistates/opencode_wake.py",
+    "src/epistates/opencode_observer.py",
+    "OpenCode public server authentication documentation"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo rutas E4-H/I/J aceptadas más las diez rutas E4-K"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Dos transportes de mínimo privilegio con URL loopback numérica, Basic Auth explícito, rutas y métodos cerrados, sin redirects/proxy, request/response acotados, JSON sin claves duplicadas y errores saneados. Pruebas usan conexiones inyectadas y nunca abren sockets.",
+  "stop_condition": "Detenerse ante necesidad de levantar OpenCode, abrir socket real, descubrir puertos, leer secretos del entorno, crear sesión, enviar prompt real, permitir redirect/proxy/SSE/polling o exportar API pública.",
+  "new_decision_required_for": [
+    "prueba de red loopback real",
+    "arranque de servidor OpenCode",
+    "sesión o prompt real",
+    "lectura de credenciales del entorno",
+    "polling o SSE",
+    "activación runtime",
+    "cambio de API pública Epistates",
+    "release",
+    "commit",
+    "push"
+  ]
+}

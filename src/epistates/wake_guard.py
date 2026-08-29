@@ -122,6 +122,36 @@ class WakeGuardStore:
             return "disabled"
         return "disabled"
 
+    def confirm_submission(self, *, nonce: str, receipt_digest: str,
+                           target_id: str) -> str:
+        """Relee policy, kill switch y reserva exacta antes del puerto."""
+        if self._disabled:
+            return "disabled"
+        if (not isinstance(nonce, str) or not _NONCE.fullmatch(nonce) or
+                not isinstance(receipt_digest, str) or
+                not _DIGEST.fullmatch(receipt_digest) or
+                not isinstance(target_id, str) or not _ID.fullmatch(target_id)):
+            return "invalid"
+        try:
+            with self._connect() as db:
+                policy = db.execute(
+                    "SELECT enabled, killed FROM wake_policy WHERE id=1"
+                ).fetchone()
+                if policy is None or not policy[0] or policy[1]:
+                    return "disabled"
+                row = db.execute(
+                    "SELECT receipt_digest, target_id FROM wake_reservations "
+                    "WHERE nonce=?", (nonce,),
+                ).fetchone()
+        except (sqlite3.DatabaseError, TypeError, ValueError):
+            self._disabled = True
+            return "disabled"
+        if row is None:
+            return "not_found"
+        if tuple(row) != (receipt_digest, target_id):
+            return "mismatch"
+        return "allowed"
+
     def reserve(self, *, receipt_digest: str, target_id: str, nonce: str,
                 dispatched_at: str, observed_at: str, ttl_seconds: int) -> str:
         """Reserva una cuota o devuelve un resultado cerrado; nunca hace wake."""

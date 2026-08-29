@@ -1,0 +1,80 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-opencode-terminal-observer",
+  "objective": "Ligar cada submission a un messageID OpenCode determinista derivado del nonce e implementar un observador terminal GET-only contra la API pública 1.18.25 mediante transporte inyectado, sin red real, sesión, prompt ni wake.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "2a46b069c5ccf6411447d3e3c4635e6f7a5154da",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-opencode-terminal-observer",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/opencode_wake.py",
+    "src/epistates/wake_delivery.py",
+    "src/epistates/wake_reconcile.py",
+    "src/epistates/opencode_observer.py",
+    "tests/test_opencode_wake.py",
+    "tests/test_wake_delivery.py",
+    "tests/test_wake_reconcile.py",
+    "tests/test_opencode_observer.py",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/architecture/0010-correlacion-terminal-opencode.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-opencode-terminal-observer.task-card.json",
+    "docs/adversarial-e4-opencode-terminal-observer.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/adversarial-e4-terminal-reconciler.md",
+    "src/epistates/opencode_wake.py",
+    "src/epistates/wake_delivery.py",
+    "src/epistates/wake_reconcile.py",
+    "OpenCode public server API and v1.18.25 source"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo rutas E4-H/E4-I aceptadas más las trece rutas E4-J"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Correlación exacta nonce-messageID-body digest, observador OpenCode que sólo usa health/status/message GET inyectados y resumen terminal saneado, pruebas de duplicados, cross-binding, mensajes vacíos, tools, error, pending y respuestas hostiles. Sin transporte HTTP concreto ni activación runtime.",
+  "stop_condition": "Detenerse ante necesidad de crear sesión, enviar prompt real, usar SSE, credenciales o red real, conservar contenido libre, inferir éxito sólo de idle/204, cambiar schema SQLite o exportar API pública.",
+  "new_decision_required_for": [
+    "transporte HTTP productivo",
+    "servidor o sesión OpenCode real",
+    "prompt o wake real",
+    "SSE o polling automático",
+    "credenciales",
+    "retry automático",
+    "cambio de schema SQLite",
+    "cambio de API pública Epistates",
+    "release",
+    "commit",
+    "push"
+  ]
+}

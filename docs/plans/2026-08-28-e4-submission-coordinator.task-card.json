@@ -1,0 +1,80 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-submission-coordinator",
+  "objective": "Implementar el coordinador durable E4 para avanzar un intento reservado hacia submitting y registrar el resultado de un puerto exclusivamente inyectado, sin red real ni wake automático.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "2a46b069c5ccf6411447d3e3c4635e6f7a5154da",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-submission-coordinator",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/wake_guard.py",
+    "src/epistates/delivery_ledger.py",
+    "src/epistates/opencode_wake.py",
+    "src/epistates/wake_delivery.py",
+    "tests/test_wake_guard.py",
+    "tests/test_delivery_ledger.py",
+    "tests/test_opencode_wake.py",
+    "tests/test_wake_delivery.py",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-submission-coordinator.task-card.json",
+    "docs/adversarial-e4-submission-coordinator.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/architecture/0007-reactivacion-soportada.md",
+    "docs/architecture/0008-opencode-wake-port.md",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/adversarial-e4-wake-delivery-integration.md",
+    "src/epistates/wake_guard.py",
+    "src/epistates/delivery_ledger.py",
+    "src/epistates/opencode_wake.py",
+    "src/epistates/wake_delivery.py"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo las doce rutas autorizadas"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Coordinador interno que revalida binding y kill switch, persiste submitting antes del puerto, realiza a lo sumo una llamada inyectada y registra submitted, failed o ambiguous mediante CAS. Pruebas de concurrencia, restart, crash, kill switch y respuesta desconocida. Sin transporte de producción, red, credenciales, sesión real, reconciliación, retry ni wake automático.",
+  "stop_condition": "Detenerse ante necesidad de red real, credenciales, iniciar OpenCode, crear sesiones, observar una respuesta terminal, reintentar, liberar cuota, exportar API pública o cambiar schemas publicados.",
+  "new_decision_required_for": [
+    "transporte de producción",
+    "red o credenciales",
+    "sesión o prompt real",
+    "reconciliador runtime",
+    "retry automático",
+    "wake real o automático",
+    "cambio de API pública",
+    "release",
+    "commit",
+    "push"
+  ]
+}

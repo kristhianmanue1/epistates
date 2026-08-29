@@ -61,6 +61,40 @@ TAREA EPI-E4-001-G — reserva y ledger atómicos
   [x] Probar fallo inyectado, colisión, kill switch, restart y concurrencia.
   Estado: primitiva local cerrada; adopción runtime, `submitting`, proveedor y wake bloqueados.
   Tarjeta: [e4-wake-delivery-integration](2026-08-28-e4-wake-delivery-integration.task-card.json).
+
+TAREA EPI-E4-001-H — coordinador durable de submission simulado
+  Produce: binding puerto-ledger, relectura de kill switch, transición
+    reserved/submitting/resultado y pruebas sin transporte productivo.
+  Estado: implementación local aceptada tras ronda adversarial; red,
+    credenciales, reconciliación y wake real siguen bloqueados.
+  Tarjeta: [e4-submission-coordinator](2026-08-28-e4-submission-coordinator.task-card.json).
+
+TAREA EPI-E4-001-I — reconciliador terminal read-only simulado
+  Produce: clasificación monotónica desde submitting/submitted, binding de
+    observación y pruebas de restart/concurrencia sin operación de envío.
+  Estado: implementación local aceptada tras
+    [ronda adversarial](../adversarial-e4-terminal-reconciler.md); observador
+    productivo, red, credenciales, retry y wake real siguen bloqueados.
+  Tarjeta: [e4-terminal-reconciler](2026-08-28-e4-terminal-reconciler.task-card.json).
+
+TAREA EPI-E4-001-J — correlación y observador terminal OpenCode
+  Produce: messageID determinista ligado al nonce, digest exacto por intento,
+    observador GET-only 1.18.25 y pruebas sin transporte real.
+  Estado: implementación local aceptada tras
+    [ronda adversarial](../adversarial-e4-opencode-terminal-observer.md);
+    cliente HTTP, servidor, sesión, credenciales, polling, retry y wake real
+    siguen bloqueados.
+  ADR: [ADR-0010](../architecture/0010-correlacion-terminal-opencode.md).
+  Tarjeta: [e4-opencode-terminal-observer](2026-08-28-e4-opencode-terminal-observer.task-card.json).
+
+TAREA EPI-E4-001-K — transportes HTTP OpenCode separados
+  Produce: transporte GET-only y transporte submission con loopback numérico,
+    Basic Auth, allowlists, timeout, límites y JSON estricto.
+  Estado: implementación local aceptada tras
+    [ronda adversarial](../adversarial-e4-opencode-http-transport.md); no hay
+    wiring runtime, socket real, servidor, sesión, credencial ni prompt.
+  ADR: [ADR-0011](../architecture/0011-transporte-http-opencode.md).
+  Tarjeta: [e4-opencode-http-transport](2026-08-28-e4-opencode-http-transport.task-card.json).
 ```
 
 ## Definition of Done del diseño

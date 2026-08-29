@@ -1,6 +1,7 @@
 # ADR-0009 — Entrega asíncrona durable y reconciliable
 
-**Estado:** aceptado; ledger local implementado, integración y wake bloqueados.
+**Estado:** aceptado; ledger, submission y reconciliación simulados
+implementados; transporte/observador productivos y wake bloqueados.
 **Fecha:** 2026-08-28. **Depende de:** ADR-0007 y ADR-0008.
 
 ## Contexto
@@ -20,8 +21,16 @@ un ledger durable con estados monotónicos:
 reserved -> submitting -> submitted -> completed
     |            |             |
     v            v             v
-  failed      ambiguous     failed | ambiguous
+  failed      failed*       failed | ambiguous
+                 |
+                 v
+              ambiguous
 ```
+
+`failed*` desde `submitting` se permite únicamente si una relectura durable del
+kill switch u otra precondición demuestra que el puerto aún no fue invocado.
+Después de intentar I/O, un fallo sin acuse inequívoco sólo puede terminar en
+`ambiguous`.
 
 - `reserved`: policy, recibo, destino, nonce, TTL y cuota fueron aceptados;
   todavía no comenzó I/O de proveedor.
@@ -74,6 +83,22 @@ marca `ambiguous`. Nunca reenvía durante reconciliación.
 - `WakeDeliveryCoordinator` puede crear la reserva de cuota y el primer evento
   `reserved` en una sola transacción, únicamente cuando guard y ledger apuntan
   al mismo archivo SQLite. Un fallo o colisión revierte ambas escrituras.
+- `WakeSubmissionCoordinator` revalida el binding exacto del puerto, persiste
+  `submitting`, relee el kill switch y realiza como máximo una llamada
+  inyectada. Un `queued` sólo produce `submitted`; excepción, resultado
+  desconocido o fallo sin certeza produce `ambiguous`. En este corte se prueba
+  únicamente con transporte simulado.
+- `WakeTerminalReconciler` toma el ledger como fuente de verdad y no posee
+  operación de envío. Un `submitting` sin request id público ligado termina
+  `ambiguous` sin observar; un `submitted` puede permanecer pendiente o pasar
+  por CAS a `completed`, `failed` o `ambiguous` desde una observación saneada y
+  ligada. El observador de este corte es exclusivamente inyectado/simulado.
+- La correlación OpenCode usa `messageID = msg_e4_<nonce>`. Tanto el digest del
+  cuerpo como los bindings de submission y observación se calculan para ese
+  nonce; la respuesta sólo pertenece al intento si su `parentID` coincide.
+- `OpenCodeTerminalObserver` implementa la interpretación GET-only para la
+  versión auditada 1.18.25 mediante transporte inyectado. No exporta cliente
+  HTTP, no crea sesiones, no envía prompts y no activa reconciliación runtime.
 - `OpenCodeWakePort.request_wake() == queued` no podrá cerrar una entrega.
 - La integración futura requiere una interfaz separada de observación terminal;
   no se ampliará silenciosamente el puerto de envío.

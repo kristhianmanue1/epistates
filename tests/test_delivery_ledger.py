@@ -83,6 +83,16 @@ class DeliveryLedgerStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get(self.nonce).state, "ambiguous")
         self.assertEqual(self.transition("ambiguous", "submitted", 3), "invalid")
 
+    def test_submitting_can_fail_only_with_explicit_evidence(self):
+        self.assertEqual(self.create(), "reserved")
+        self.assertEqual(self.transition("reserved", "submitting", 1), "updated")
+        self.assertEqual(self.transition(
+            "submitting", "failed", 2,
+            result_class="guard-blocked-before-io",
+            evidence_digest="sha256:" + "e" * 64,
+        ), "updated")
+        self.assertEqual(self.store.get(self.nonce).state, "failed")
+
     def test_submitted_is_not_completed_and_terminal_states_are_immutable(self):
         self.assertEqual(self.create(), "reserved")
         self.assertEqual(self.transition("reserved", "submitting", 1), "updated")

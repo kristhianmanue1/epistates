@@ -1,0 +1,70 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "e4-terminal-reconciler",
+  "objective": "Implementar un reconciliador E4 read-only para clasificar intentos submitting o submitted mediante observaciones terminales inyectadas, sin enviar, reintentar ni usar red real.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "2a46b069c5ccf6411447d3e3c4635e6f7a5154da",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-e4-terminal-reconciler",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "src/epistates/wake_reconcile.py",
+    "tests/test_wake_reconcile.py",
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/plans/2026-08-28-e4-reactivation-design.md",
+    "docs/plans/2026-08-28-e4-terminal-reconciler.task-card.json",
+    "docs/adversarial-e4-terminal-reconciler.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/architecture/0009-entrega-wake-asincrona.md",
+    "docs/plans/2026-08-28-e4-submission-coordinator.task-card.json",
+    "docs/adversarial-e4-submission-coordinator.md",
+    "src/epistates/delivery_ledger.py",
+    "src/epistates/wake_delivery.py"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo rutas E4-H aceptadas más las seis rutas E4-I"},
+    {"check_id": "diff_check", "expected": "exit 0"},
+    {"check_id": "unit_tests", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Reconciliador interno que toma el ledger como fuente de verdad, nunca observa un intento reserved, nunca reenvía, clasifica submitting sin binding consultable como ambiguous y usa una observación inyectada ligada para mantener submitted o aplicar completed, failed o ambiguous mediante CAS. Pruebas de restart, concurrencia, respuesta vacía, tool parts, binding cruzado y excepción. Sin transporte productivo, red, credenciales, prompt, sesión real ni retry.",
+  "stop_condition": "Detenerse ante necesidad de llamar prompt_async, crear sesión, reintentar, liberar cuota, conservar texto libre, usar endpoints reales, cambiar schemas publicados o exportar API pública.",
+  "new_decision_required_for": [
+    "observador OpenCode productivo",
+    "red o credenciales",
+    "sesión o prompt real",
+    "retry automático",
+    "wake real o automático",
+    "cambio de API pública",
+    "release",
+    "commit",
+    "push"
+  ]
+}

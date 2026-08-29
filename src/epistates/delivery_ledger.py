@@ -17,7 +17,10 @@ _STATES = frozenset({
 })
 _TRANSITIONS = {
     "reserved": frozenset({"submitting", "failed"}),
-    "submitting": frozenset({"submitted", "ambiguous"}),
+    # `failed` desde submitting sólo cubre un aborto comprobado antes de
+    # invocar el puerto (p. ej. kill switch reactivado). Tras intentar I/O,
+    # cualquier fallo sin acuse inequívoco es `ambiguous`.
+    "submitting": frozenset({"submitted", "failed", "ambiguous"}),
     "submitted": frozenset({"completed", "failed", "ambiguous"}),
 }
 _SCHEMA_VERSION = 1
