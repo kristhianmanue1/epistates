@@ -33,7 +33,42 @@ autoriza tag, GitHub Release ni PyPI.
 9. Ausencia de repo/docs/tests/fixtures y secretos dentro del wheel.
 10. Ronda adversarial fresca del artefacto final.
 
-## Evidencia
+## Evidencia de la candidata
+
+- **SHA fuente:** `0858c6c5abbd7070cb9863cfd3e77e31a77c54ad`.
+- **SOURCE_DATE_EPOCH:** `1787965609`.
+- **Artefacto:** `epistates-0.1.0a2-py3-none-any.whl`.
+- **Tamaño:** `130918` bytes.
+- **SHA-256:**
+  `894781e3bc34e34574af51e6c787a96ef67f3efc4cb99d1c9d4b684edff00fef`.
+- **Reproducibilidad:** dos exportaciones independientes de ese SHA,
+  construidas con Python 3.9.6, `--no-deps --no-build-isolation` y el mismo
+  epoch, produjeron nombre, tamaño y bytes idénticos (`cmp` exit `0`).
+- **Metadata:** `Name: epistates`, `Version: 0.1.0a2`,
+  `Requires-Python: >=3.9`.
+- **Inventario wheel:** 44 entradas; 29 módulos Python, 7 schemas, 2 archivos
+  de onboarding y 6 entradas `dist-info`; cero rutas `test`, `tests`, `docs`,
+  `fixtures` o `.git`.
+- **Recursos instalados:** 7 schemas, 3 entradas de onboarding y 45 símbolos
+  públicos declarados; digest de `agent-guide.md`
+  `sha256:c4f3bd46692c4efd39a6221709ec58af9f9d5ad37899861450354577f8ccbe9c`.
+- **Secret scan:** sin coincidencias de claves privadas, tokens GitHub/AWS,
+  claves OpenAI ni asignaciones obvias de API key dentro del wheel.
+
+## CI local y smoke
+
+- macOS, Python 3.9.6: `891` tests, `OK`, `1 skipped`.
+- macOS, Python 3.12.12 Homebrew: `891` tests, `OK`, `1 skipped`.
+- Wheel instalado con `pip --no-deps` en dos venvs nuevos.
+- Smoke en ambos intérpretes desde
+  `/private/tmp/epistates-alpha2-gate.dsj7Hw`, fuera del checkout y sin
+  `PYTHONPATH`: import, versión runtime/metadata, `--help`, `--version`,
+  `describe`, `schema list`, `schema show`, validación nominal empaquetada y
+  validación inválida con JSON único/exit `1`, todo conforme.
+- Tarjeta válida, YAML parseable, enlaces locales válidos y `git diff --check`
+  limpio.
+
+## Limitación externa registrada
 
 El run GitHub Actions
 [`33225053925`](https://github.com/kristhianmanue1/epistates/actions/runs/33225053925)
@@ -43,6 +78,9 @@ fallo del código. Para este corte, la evidencia autoritativa será la suite loc
 en macOS con Python 3.9 y 3.12. Linux queda **NO VERIFICADO** y no debe inferirse
 del workflow preparado.
 
-El resto de la evidencia está pendiente. Se completará con SHA de candidata,
-epoch, hashes, inventario, resultados locales/smoke y riesgos residuales. Hasta
-entonces el veredicto es `BLOCKED` para release.
+## Resultado
+
+El gate técnico local de la candidata está **PROCEED**. La ronda adversarial
+final está en [`adversarial-release-0.1.0-alpha.2.md`](adversarial-release-0.1.0-alpha.2.md).
+Este resultado no autoriza ni ejecuta tag, GitHub Release o PyPI; esas
+operaciones permanecen **BLOCKED** hasta una orden explícita del mantenedor.
