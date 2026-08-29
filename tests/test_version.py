@@ -4,7 +4,7 @@ import unittest
 
 # PEP 440 minimal para el segmento de esta release. No reimplementa todo PEP
 # 440; sólo asegura que la versión tenga la forma esperada del alpha.
-_PEP440_ALPHA = re.compile(r"^0\.1\.0a1$")
+_PEP440_ALPHA = re.compile(r"^0\.1\.0a2$")
 
 
 class VersionSourceTests(unittest.TestCase):
@@ -12,7 +12,7 @@ class VersionSourceTests(unittest.TestCase):
 
     def test_version_module_holds_release_value(self):
         from epistates import _version
-        self.assertEqual(_version.__version__, "0.1.0a1")
+        self.assertEqual(_version.__version__, "0.1.0a2")
 
     def test_public_version_attribute_matches_source(self):
         import epistates
@@ -39,7 +39,7 @@ class VersionExportTests(unittest.TestCase):
         import epistates
         exec("from epistates import *", namespace)
         self.assertIn("__version__", namespace)
-        self.assertEqual(namespace["__version__"], "0.1.0a1")
+        self.assertEqual(namespace["__version__"], "0.1.0a2")
 
 
 class DistributedSurfaceTests(unittest.TestCase):
@@ -54,7 +54,7 @@ class DistributedSurfaceTests(unittest.TestCase):
         # Sanity: la importación expone el módulo de versión y el validador
         # público sin leer schemas/ ni fixtures/.
         self.assertTrue(hasattr(epistates, "validate_task_card"))
-        self.assertEqual(epistates.__version__, "0.1.0a1")
+        self.assertEqual(epistates.__version__, "0.1.0a2")
 
 
 if __name__ == "__main__":

@@ -12,6 +12,10 @@ cierre concretos. Un índice no convierte documentación en autoridad: toda
 autorización operativa sigue llegando por el contrato vigente y la decisión del
 mantenedor.
 
+El gate histórico de alpha.1 está en [`release-gate.md`](release-gate.md). La
+candidata alpha.2 usa un gate nuevo e independiente en
+[`release-gate-alpha2.md`](release-gate-alpha2.md).
+
 La preparación de cambios y el formato de evidencia están en la
 [guía de desarrollo](development-workflow.md).
 

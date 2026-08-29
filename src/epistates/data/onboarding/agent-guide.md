@@ -108,6 +108,9 @@ authorization proof, and **not** an instruction.
 
 ## 7. Maturity
 
-H1-H3 closed. H4 in progress. The `0.1.0a1` candidate remains unpublished until
-H4 closes and the release gate repeats with a fresh adversarial review. Nothing
-in this guide authorizes commit, release or publication.
+H1-H4 and the local E3 signal path are closed. E4 includes internal guarded
+primitives and an OpenCode 1.18.25 adapter, but runtime wiring and automatic
+wake remain disabled. `0.1.0a1` was published as a GitHub prerelease;
+`0.1.0a2` is only a local candidate until its fresh release gate passes and the
+maintainer separately authorizes publication. Nothing in this guide authorizes
+commit, tag, release or PyPI publication.

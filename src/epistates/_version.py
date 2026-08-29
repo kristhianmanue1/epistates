@@ -9,10 +9,10 @@ módulo, por lo que runtime y metadata no pueden divergir silenciosamente:
 - build: ``[tool.setuptools.dynamic] version = {attr = ...}`` en
   ``pyproject.toml`` lee este mismo atributo por AST, sin ejecutar el paquete.
 
-La versión PEP 440 del paquete (``0.1.0a1``) es distinta del tag humano
-(``v0.1.0-alpha.1``): el primero es el identificador de distribución Python, el
-segundo es la etiqueta Git publicada para la prerelease de GitHub. Ambas cadenas
-identifican el mismo corte, pero no son intercambiables literalmente.
+La versión PEP 440 del paquete (``0.1.0a2``) es distinta del tag humano futuro
+(``v0.1.0-alpha.2``): el primero identifica la candidata de distribución; el
+segundo sólo existirá si el mantenedor autoriza y publica la prerelease. No son
+intercambiables literalmente.
 """
 
-__version__ = "0.1.0a1"
+__version__ = "0.1.0a2"

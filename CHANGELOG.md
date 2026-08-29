@@ -11,8 +11,44 @@ versionado del paquete sigue [PEP 440](https://peps.python.org/pep-0440/).
 
 ## [Unreleased]
 
-Sin cambios desde `0.1.0-alpha.1`. Las líneas futuras requieren autoridad
-vigente del mantenedor y, para los hitos, revisión adversarial fresca.
+No hay cambios posteriores a la candidata `0.1.0-alpha.2`. La candidata sigue
+sin tag ni publicación; cualquier release requiere autoridad separada.
+
+## [0.1.0-alpha.2] - Unreleased
+
+Candidata experimental posterior a alpha.1. **No está publicada**: la versión
+PEP 440 es `0.1.0a2`, pero el tag humano `v0.1.0-alpha.2` no existe mientras el
+mantenedor no autorice el gate final y las operaciones de publicación.
+
+### Added
+
+- E3: recibos de señal locales atómicos, expirables y deduplicables; inbox
+  fail-closed y adaptador macOS kqueue que sólo solicita reconciliación.
+- E4: guard persistente, kill switch, cuota/nonce, ledger durable, reserva
+  atómica, coordinador de submission y reconciliador terminal.
+- Puerto, observador y transportes HTTP OpenCode 1.18.25 con Basic Auth,
+  loopback numérico, límites de bytes/JSON, correlación messageID y validación
+  ordenada de permisos efectivos.
+- Manifiesto de proyecto y prácticas ADRC/Skevi adoptadas de forma acotada.
+- CI para macOS/Linux sobre Python 3.9 y 3.12.
+
+### Security and governance
+
+- Señal, detección, reconciliación, autorización y efecto externo permanecen
+  separados. Un evento o health check nunca concede permiso.
+- E4 se distribuye como infraestructura interna **inactiva**: sin daemon,
+  polling, sesión automática ni wake habilitado.
+- La excepción interna `external_directory` de OpenCode sólo se acepta después
+  de un deny global de herramientas y bajo forma acotada de truncado.
+- Los resultados ambiguos no se reintentan automáticamente y consumen la
+  reserva/cuota correspondiente.
+
+### Known limitations
+
+- El adaptador de eventos kqueue es sólo macOS; Windows no está soportado.
+- OpenCode queda ligado a la versión auditada `1.18.25` y `zai/glm-5.2`.
+- No existe aún una activación runtime E4 ni un wake real autorizado.
+- PyPI permanece sin publicar.
 
 ## [0.1.0-alpha.1] - 2026-08-12
 
@@ -94,5 +130,6 @@ contenido y SHA-256. El comando determinista está documentado en
   versiones superiores no se probaron aquí y no se afirman en los classifiers.
 - Sin dependencias de ejecución.
 
-[Unreleased]: https://github.com/kristhianmanue1/epistates/blob/main/CHANGELOG.md
+[Unreleased]: https://github.com/kristhianmanue1/epistates/compare/v0.1.0-alpha.2...HEAD
+[0.1.0-alpha.2]: https://github.com/kristhianmanue1/epistates/compare/v0.1.0-alpha.1...HEAD
 [0.1.0-alpha.1]: https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1

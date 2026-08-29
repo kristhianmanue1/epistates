@@ -1,8 +1,8 @@
 # Epistates
 
-**Estado:** H1–H4 cerrados localmente · **Madurez:** experimental ·
-**Prerelease GitHub:** `0.1.0a1`
-**Versión del paquete (PEP 440):** `0.1.0a1` · **Tag publicado:**
+**Estado:** H1–H4 y E3 cerrados; E4 interno sin activar · **Madurez:** experimental
+**Versión candidata del paquete:** `0.1.0a2` (**no publicada**) ·
+**Última prerelease GitHub publicada:**
 [`v0.1.0-alpha.1`](https://github.com/kristhianmanue1/epistates/releases/tag/v0.1.0-alpha.1).
 
 > Registro histórico 2026-08-11: los hitos H1 (contrato `task-card/v1` y validador
@@ -19,22 +19,23 @@
 > **Software experimental.** Epistates es un alpha sin garantías: la API, los
 > contratos y el CLI pueden cambiar sin previo aviso. **No existe versión
 > estable publicada**; `0.1.0a1` está publicada únicamente como prerelease
-> alpha de GitHub y no implica estabilidad ni compatibilidad futura.
+> alpha de GitHub y `0.1.0a2` sigue siendo una candidata local. Ninguna implica
+> estabilidad ni compatibilidad futura.
 
 ## Instalación
 
-Epistates no está publicado en PyPI. Para evaluar la prerelease `0.1.0a1`,
+Epistates no está publicado en PyPI. Para evaluar la candidata local `0.1.0a2`,
 construye el wheel de forma reproducible y instálalo en un venv limpio. El
 paquete **no tiene dependencias de ejecución** y se construye sin aislamiento
 ni red:
 
 ```bash
 # desde la raíz del repositorio, con un Python >=3.9
-# SOURCE_DATE_EPOCH fija los timestamps del wheel al del commit base, haciendo
-# el build reproducible (mismo nombre, tamaño, contenido y SHA-256).
-SOURCE_DATE_EPOCH=1786546459 python -m pip wheel --no-deps --no-build-isolation . -w /tmp/epistates-dist
+# SOURCE_DATE_EPOCH debe fijarse al valor registrado por el gate alpha.2.
+# Dos builds independientes deben coincidir en nombre, tamaño y SHA-256.
+SOURCE_DATE_EPOCH=<epoch-del-gate-alpha2> python -m pip wheel --no-deps --no-build-isolation . -w /tmp/epistates-dist
 python -m venv /tmp/epistates-smoke
-/tmp/epistates-smoke/bin/python -m pip install --no-deps /tmp/epistates-dist/epistates-0.1.0a1-py3-none-any.whl
+/tmp/epistates-smoke/bin/python -m pip install --no-deps /tmp/epistates-dist/epistates-0.1.0a2-py3-none-any.whl
 ```
 
 El wheel contiene el paquete Python (`epistates/**/*.py`), la metadata
@@ -140,13 +141,14 @@ inicia un adaptador.
 
 ## Compatibilidad de plataforma
 
-- **Validación pura de contratos** (`task-card/v1`, `audit-result/v1`,
-  prefiltro, recibos y binding): Python puro, ejecutable donde Python >=3.9 lo
-  soporte. Esta candidata se ha ejercitado en macOS; otras plataformas no se
-  prometen mientras no se prueben explícitamente.
+- **Validación pura y runtime local inerte:** Python >=3.9. La candidata
+  alpha.2 se verifica en CI sobre macOS/Linux y Python 3.9/3.12; eso no promete
+  automáticamente todas las versiones intermedias ni Windows.
 - **Adaptador `opencode-tmux/v1`** (observación, entrega literal, captura):
   requiere macOS o Linux porque depende de `tmux`. **Windows no está soportado**
   en este corte y no se promete compatibilidad simulada.
+- **Señal kqueue:** sólo macOS. E4 no instala daemon ni activa wake automático;
+  sus puertos, stores y reconciliadores permanecen internos hasta otro gate.
 
 ## Desarrollo local
 
@@ -155,7 +157,9 @@ usa como continuidad local y Escrubery como referencia del proceso ADRC; ninguno
 concede permisos operativos por sí mismo. Los comandos de desarrollo y CLI se
 documentan arriba en [Instalación](#instalación) y [Quickstart CLI](#quickstart-cli).
 El plan de E1 está en [`docs/plan-inicial.md`](docs/plan-inicial.md); el gate
-documental de release en [`docs/release-gate.md`](docs/release-gate.md).
+histórico alpha.1 está en [`docs/release-gate.md`](docs/release-gate.md) y el
+gate de la candidata alpha.2 en
+[`docs/release-gate-alpha2.md`](docs/release-gate-alpha2.md).
 
 Epistates es un supervisor contractual de agentes externos. Su propósito es
 permitir que un mantenedor delegue trabajo de desarrollo, QA, documentación u

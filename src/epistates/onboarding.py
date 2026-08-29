@@ -41,7 +41,7 @@ _MINIMAL_CARD_NAME = "minimal-task-card.json"
 # y fallan cerrado ante cualquier divergencia antes de devolver contenido. Una
 # divergencia implica recurso corrupto o manipulado.
 _GUIDE_DIGEST_HEX = (
-    "282e0d4e7a609ee3c16de460d44131f58c463671d17070559ad24c11ea14c8cf"
+    "c4f3bd46692c4efd39a6221709ec58af9f9d5ad37899861450354577f8ccbe9c"
 )
 _MINIMAL_CARD_DIGEST_HEX = (
     "9a64c56c37765060069680e274ff233e7515b85eec313a89bbf0560335faba3c"

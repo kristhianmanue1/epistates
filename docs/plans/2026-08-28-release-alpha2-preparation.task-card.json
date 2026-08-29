@@ -1,0 +1,75 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "release-alpha2-preparation",
+  "objective": "Preparar una candidata local 0.1.0a2 honesta y reproducible con changelog, onboarding, gate, CI macOS/Linux y smoke Python 3.9/3.12, manteniendo E4 inactivo y sin crear tag, GitHub Release ni publicación PyPI.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "8114f93f97bd4557115ddb952cd282ff93dad097",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "developer",
+  "authority": {
+    "grant_id": "maintainer-release-alpha2-preparation",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    ".github/workflows/ci.yml",
+    "pyproject.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "src/epistates/_version.py",
+    "src/epistates/onboarding.py",
+    "src/epistates/data/onboarding/agent-guide.md",
+    "tests/test_version.py",
+    "docs/README.md",
+    "docs/plan-inicial.md",
+    "docs/release-gate-alpha2.md",
+    "docs/plans/2026-08-28-release-alpha2-preparation.task-card.json",
+    "docs/adversarial-release-0.1.0-alpha.2.md"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "docs/release-gate.md",
+    "CHANGELOG.md",
+    "README.md",
+    "src/epistates/_version.py",
+    "docs/adversarial-e4-opencode-effective-permissions.md"
+  ],
+  "checks": [
+    {"check_id": "git_status", "expected": "exit 0; sólo las trece rutas alpha.2"},
+    {"check_id": "unit_tests", "expected": "exit 0"},
+    {"check_id": "diff_check", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Versión 0.1.0a2 single-source, changelog/README/onboarding coherentes, digest actualizado, CI de tests en macOS y Linux con Python 3.9/3.12, dos wheels byte-idénticos, instalación aislada y smoke en ambos Python, inventario y revisión adversarial final. E4 se declara interno e inactivo.",
+  "stop_condition": "Detenerse ante intento de tag/release/PyPI, necesidad de credenciales, dependencia externa nueva, fallo CI, wheels divergentes, smoke fallido, secreto, E4 presentado como activo o cambio funcional fuera de versionado/onboarding/release plumbing.",
+  "new_decision_required_for": [
+    "corregir código funcional por fallo del gate",
+    "dependencia nueva",
+    "tag",
+    "GitHub Release",
+    "publicación PyPI",
+    "activar E4",
+    "cambiar soporte de plataforma"
+  ]
+}
