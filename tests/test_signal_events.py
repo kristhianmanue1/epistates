@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from epistates.signal_events import KqueueSignalAdapter, SignalEventError
 
@@ -37,8 +37,21 @@ class KqueueSignalAdapterTests(unittest.TestCase):
 
     def adapter(self, responses):
         self.fake = FakeKqueue(responses)
-        return patch("epistates.signal_events.select.kqueue", return_value=self.fake), patch(
-            "epistates.signal_events.select.kevent", return_value=object()
+        return patch(
+            "epistates.signal_events.select.kqueue",
+            return_value=self.fake,
+            create=True,
+        ), patch.multiple(
+            "epistates.signal_events.select",
+            kevent=Mock(return_value=object()),
+            KQ_FILTER_VNODE=1,
+            KQ_EV_ADD=2,
+            KQ_EV_CLEAR=4,
+            KQ_NOTE_WRITE=8,
+            KQ_NOTE_RENAME=16,
+            KQ_NOTE_DELETE=32,
+            KQ_NOTE_REVOKE=64,
+            create=True,
         )
 
     def test_event_is_only_a_hint_and_discards_reconcile_result(self):

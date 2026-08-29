@@ -21,8 +21,8 @@ autoriza tag, GitHub Release ni PyPI.
 
 1. Árbol y diff acotados; tarjeta válida; enlaces y secretos revisados.
 2. Suite completa en Python 3.9 y 3.12.
-3. CI local en macOS con Python 3.9/3.12. La matriz GitHub macOS/Linux se
-   conserva para ejecución manual y revalidación cuando vuelva la cuota.
+3. CI local en macOS arm64 y Linux arm64 con Python 3.9/3.12. La matriz GitHub
+   se conserva para ejecución manual cuando vuelva la cuota.
 4. Versión single-source `0.1.0a2` coherente con metadata y wheel.
 5. Dos copias fuente independientes construidas con el mismo
    `SOURCE_DATE_EPOCH`; wheel byte-idéntico por nombre, tamaño y SHA-256.
@@ -59,6 +59,19 @@ autoriza tag, GitHub Release ni PyPI.
 
 - macOS, Python 3.9.6: `891` tests, `OK`, `1 skipped`.
 - macOS, Python 3.12.12 Homebrew: `891` tests, `OK`, `1 skipped`.
+- Linux arm64, imagen `python:3.9-slim` digest
+  `sha256:2d97f6910b16bd338d3060f261f53f144965f755599aab1acda1e13cf1731b1b`:
+  `891` tests, `OK`, `1 skipped`.
+- Linux arm64, imagen `python:3.12-slim` digest
+  `sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a`:
+  `891` tests, `OK`, `1 skipped`.
+- Los contenedores se ejecutaron sin red; el checkout se montó read-only y se
+  probó una copia efímera escribible en `tmpfs`.
+- La primera pasada Linux reveló que el mock macOS intentaba parchear símbolos
+  `select.kqueue` inexistentes en Linux. Se corrigió sólo el harness con
+  `create=True` y constantes falsas; `src/` no cambió. El montaje read-only
+  también mostró cuatro tests que crean fixtures temporales, resuelto mediante
+  la copia efímera, sin mutar el checkout.
 - Wheel instalado con `pip --no-deps` en dos venvs nuevos.
 - Smoke en ambos intérpretes desde
   `/private/tmp/epistates-alpha2-gate.dsj7Hw`, fuera del checkout y sin
@@ -74,13 +87,24 @@ El run GitHub Actions
 [`33225053925`](https://github.com/kristhianmanue1/epistates/actions/runs/33225053925)
 no inició ningún step: GitHub lo bloqueó por límite de uso/facturación. Por
 decisión explícita del mantenedor, ese bloqueo es una limitación externa, no un
-fallo del código. Para este corte, la evidencia autoritativa será la suite local
-en macOS con Python 3.9 y 3.12. Linux queda **NO VERIFICADO** y no debe inferirse
-del workflow preparado.
+fallo del código. Para este corte, la evidencia autoritativa es la matriz local
+macOS arm64 + Linux arm64 con Python 3.9 y 3.12. El workflow no aporta evidencia.
+
+## Inactividad de E4
+
+- El único entry point instalado sigue siendo `epistates.__main__:main`.
+- La CLI sólo expone `validate`, `describe` y `schema`; no expone wake, daemon,
+  polling ni sesión.
+- Los módulos internos E4 no se importan ni exportan desde `epistates.__init__`.
+- No se ejecutó OpenCode, tmux, wake, red de proveedor ni reactivación durante
+  el gate. E4 permanece interno e inactivo.
 
 ## Resultado
 
-El gate técnico local de la candidata está **PROCEED**. La ronda adversarial
+El gate técnico local multiplataforma de la candidata está **PROCEED**. La ronda adversarial
 final está en [`adversarial-release-0.1.0-alpha.2.md`](adversarial-release-0.1.0-alpha.2.md).
-Este resultado no autoriza ni ejecuta tag, GitHub Release o PyPI; esas
-operaciones permanecen **BLOCKED** hasta una orden explícita del mantenedor.
+El mantenedor autorizó continuar hacia tag, GitHub Release y PyPI. El preflight
+confirmó que el tag/release no existen y que PyPI no tiene un proyecto
+`epistates`, pero no encontró credencial PyPI local. Para evitar publicación
+parcial, las tres operaciones quedan **BLOCKED por autenticación** hasta que
+`UV_PUBLISH_TOKEN` esté disponible; nunca debe registrarse su valor.

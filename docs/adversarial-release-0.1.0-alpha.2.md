@@ -43,8 +43,11 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
 - **E4 presentado como activo:** refutado. README/gate declaran que es interno e
   inactivo; no hay daemon, wiring automático ni wake habilitado.
 - **Plataformas sobrerreportadas:** hallazgo corregido antes del build. El gate
-  ahora limita la evidencia a macOS/Python 3.9.6 y 3.12.12 y declara Linux no
-  verificado. El workflow conserva la matriz sólo para ejecución manual futura.
+  ahora registra macOS arm64 y Linux arm64 sobre Python 3.9/3.12 por separado.
+  No infiere x86_64. El workflow conserva la matriz sólo para ejecución manual.
+- **Suite no colectable en Linux:** hallazgo corregido. El mock de kqueue ahora
+  crea explícitamente los símbolos Darwin ausentes en `select` de Linux; la
+  corrección está limitada a tests y la matriz completa volvió a verde.
 - **GitHub rojo interpretado como fallo:** refutado. El run `33225053925` no
   ejecutó steps por límite de uso/facturación; no es evidencia del código.
 - **Release inferido:** refutado. No existe autorización en esta tarjeta para
@@ -52,13 +55,13 @@ Estado inicial: **PENDIENTE DEL GATE FINAL**.
 
 ### Riesgos residuales
 
-- Linux no tiene evidencia fresca para este corte; debe revalidarse cuando
-  vuelva la cuota o mediante un runner Linux local explícitamente autorizado.
+- macOS/Linux se verificaron sólo sobre arm64; x86_64 no tiene evidencia fresca.
 - La reproducibilidad está demostrada con el toolchain local actual, no entre
   toolchains o sistemas operativos distintos.
 - E4 sigue siendo superficie interna experimental; superar el gate de paquete
   no autoriza conectarlo a un runtime ni despertar agentes.
 
-**PROCEED para conservar la candidata local y solicitar una decisión separada
-de publicación. BLOCKED para tag, GitHub Release y PyPI hasta autorización
-explícita del mantenedor.**
+**PROCEED técnico para la candidata local. El mantenedor autorizó publicación,
+pero el preflight no encontró credencial PyPI. BLOCKED para tag, GitHub Release
+y PyPI hasta disponer de `UV_PUBLISH_TOKEN`, evitando un release parcial. E4
+permanece inactivo.**

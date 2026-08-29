@@ -1,0 +1,67 @@
+{
+  "schema": "epistates/task-card/v1",
+  "task_id": "alpha2-linux-release",
+  "objective": "Revalidar la candidata 0.1.0a2 en Linux local arm64 con Python 3.9 y 3.12, confirmar que E4 permanece inactivo y cerrar la evidencia previa a publicación. Las operaciones protegidas de commit, push, tag, GitHub Release y PyPI dependen exclusivamente de la autorización explícita del mantenedor en el canal externo.",
+  "target": {
+    "repository": "epistates",
+    "base_sha": "5571e4779081f06867fa086133ea2bb0f382eb09",
+    "branch": "main",
+    "worktree": "/Users/krisnova/www/aria/epistates"
+  },
+  "role": "qa",
+  "authority": {
+    "grant_id": "maintainer-alpha2-linux-release-2026-08-28",
+    "granted_by": "maintainer",
+    "granted_actions": ["read", "edit", "run_checks"],
+    "protected_operations_authorized": []
+  },
+  "allowed_paths": [
+    "tests/test_signal_events.py",
+    "docs/release-gate-alpha2.md",
+    "docs/adversarial-release-0.1.0-alpha.2.md",
+    "docs/plans/2026-08-28-alpha2-linux-release.task-card.json"
+  ],
+  "allowed_actions": ["read", "edit", "run_checks"],
+  "forbidden_operations": [
+    "commit",
+    "push",
+    "open_pr",
+    "merge",
+    "release",
+    "install_dependencies",
+    "change_scope",
+    "git_reset",
+    "create_branch",
+    "delete_branch",
+    "create_worktree",
+    "remove_worktree"
+  ],
+  "inputs": [
+    "tests/test_signal_events.py",
+    "src/epistates/signal_events.py",
+    "docs/release-gate-alpha2.md",
+    "docs/adversarial-release-0.1.0-alpha.2.md",
+    "docs/plans/2026-08-28-release-alpha2-preparation.task-card.json"
+  ],
+  "checks": [
+    {"check_id": "unit_tests", "expected": "Linux arm64 Python 3.9: 891 tests OK; wheel smoke OK"},
+    {"check_id": "unit_tests", "expected": "Linux arm64 Python 3.12: 891 tests OK; wheel smoke OK"},
+    {"check_id": "git_status", "expected": "E4 sin daemon, wiring, polling, sesión o wake automático; sólo rutas permitidas modificadas"},
+    {"check_id": "diff_check", "expected": "dos wheels byte-idénticos desde el SHA final"},
+    {"check_id": "diff_check", "expected": "exit 0"}
+  ],
+  "evidence": {
+    "report_format": "rag/v1",
+    "required": ["worktree_status", "diff_check", "check_results"]
+  },
+  "delivery": "Evidencia Linux local separada por intérprete y arquitectura, corrección limitada del mock kqueue para que la prueba macOS pueda colectarse en Linux, comprobación de inactividad E4, artefacto final reproducible y una decisión adversarial de publicación. No registrar secretos ni presentar Docker arm64 como evidencia x86_64.",
+  "stop_condition": "Detener publicación ante fallo de suite o smoke, divergencia del wheel, E4 activo, secreto, tag preexistente divergente, versión PyPI ya ocupada, falta de autenticación o cualquier diferencia entre artefacto validado y artefacto a publicar.",
+  "new_decision_required_for": [
+    "corregir código funcional",
+    "activar E4",
+    "cambiar versión",
+    "sobrescribir tag o release",
+    "publicar un artefacto distinto",
+    "aceptar fallo del gate"
+  ]
+}
